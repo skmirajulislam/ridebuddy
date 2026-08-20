@@ -206,6 +206,7 @@ export default function Map() {
       container: mapContainer.current,
       center: [88.3639, 22.5726],
       zoom: 13,
+      maxZoom: 19,
     });
 
     const defaultStyle: maplibregl.StyleSpecification | string = apiKey
@@ -221,6 +222,7 @@ export default function Map() {
                 "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
               ],
               tileSize: 256,
+              maxzoom: 19,
               attribution: "&copy; OpenStreetMap Contributors",
             },
           },

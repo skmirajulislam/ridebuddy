@@ -40,6 +40,7 @@ export default function MapView({
       container: containerRef.current,
       center: [88.3639, 22.5726],
       zoom: 12,
+      maxZoom: 19,
     });
 
     const styleUrl = MAPTILER_KEY

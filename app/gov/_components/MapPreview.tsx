@@ -39,6 +39,7 @@ export default function MapPreview({
       container: containerRef.current,
       center: [lng, lat],
       zoom: 14,
+      maxZoom: 19,
       interactive: false,
       attributionControl: false,
     });
