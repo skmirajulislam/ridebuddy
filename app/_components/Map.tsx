@@ -219,6 +219,13 @@ export default function Map() {
     handleOrId: null,
   });
 
+  // Reference to current user state
+  const { user, idToken } = useAuth();
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   // Attach global helper for map popup clicks
   useEffect(() => {
     (window as unknown as {
@@ -233,6 +240,11 @@ export default function Map() {
         }
       ) => void;
     }).__openContributorModal = (handle, data) => {
+      if (!userRef.current) {
+        toast.info("Please sign in or register to view rider profiles");
+        setAuthModalOpen(true);
+        return;
+      }
       setContributorModal({
         isOpen: true,
         handleOrId: handle,
@@ -273,7 +285,6 @@ export default function Map() {
   const { position } = useUserLocation();
   const { permission, requestPermission, sendNotification } = useNotifications();
   const { getCache, setCache } = useHazardCache();
-  const { user, idToken } = useAuth();
 
   // ── Voice Assistant Integration ──────────────────────────────────────────
   const {
@@ -880,6 +891,11 @@ export default function Map() {
 
   // ── Use My Location (From field) ──────────────────────────────────────────
   const useMyLocation = () => {
+    if (!user) {
+      toast.info("Please sign in or register to use GPS routing");
+      setAuthModalOpen(true);
+      return;
+    }
     if (!position) {
       toast.info("Waiting for GPS location...");
       return;
@@ -1008,6 +1024,11 @@ export default function Map() {
 
   // ── Handle Map Click for Location Selection ───────────────────────────────
   const handleMapClick = async (lng: number, lat: number, target: "from" | "to" = "to") => {
+    if (!user) {
+      toast.info("Please sign in or register to set custom route points");
+      setAuthModalOpen(true);
+      return;
+    }
     const coords: [number, number] = [lng, lat];
     const locationName = await reverseGeocode(lng, lat);
     if (target === "from") {
@@ -1832,7 +1853,14 @@ export default function Map() {
                   )}
                   <button
                     className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'from' ? 'active' : ''}`}
-                    onClick={() => setMapPickTarget(mapPickTarget === 'from' ? null : 'from')}
+                    onClick={() => {
+                      if (!user) {
+                        toast.info("Please sign in or register to pick waypoints on the map");
+                        setAuthModalOpen(true);
+                        return;
+                      }
+                      setMapPickTarget(mapPickTarget === 'from' ? null : 'from');
+                    }}
                     title={mapPickTarget === 'from' ? "Click map to set Start point" : "Pick Start point on map"}
                     aria-label="Pick start on map"
                     style={mapPickTarget === 'from' ? { background: "rgba(168, 85, 247, 0.3)", borderColor: "#a855f7" } : {}}
@@ -1888,7 +1916,14 @@ export default function Map() {
                 )}
                 <button
                   className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'to' ? 'active' : ''}`}
-                  onClick={() => setMapPickTarget(mapPickTarget === 'to' ? null : 'to')}
+                  onClick={() => {
+                    if (!user) {
+                      toast.info("Please sign in or register to pick destination on the map");
+                      setAuthModalOpen(true);
+                      return;
+                    }
+                    setMapPickTarget(mapPickTarget === 'to' ? null : 'to');
+                  }}
                   title={mapPickTarget === 'to' ? "Click map to set Destination" : "Pick Destination on map"}
                   aria-label="Pick destination on map"
                   style={mapPickTarget === 'to' ? { background: "rgba(255, 77, 109, 0.3)", borderColor: "#ff4d6d" } : {}}
@@ -2068,6 +2103,7 @@ export default function Map() {
           hazard={verificationPromptHazard.hazard}
           distanceMeters={verificationPromptHazard.distance}
           onDismiss={() => setVerificationPromptHazard(null)}
+          onRequireAuth={() => setAuthModalOpen(true)}
           onVerified={(hazardId, isResolved) => {
             setVerificationPromptHazard(null);
             if (isResolved) {
@@ -2107,15 +2143,36 @@ export default function Map() {
             isSpeaking={isSpeaking}
             transcript={transcript}
             voiceEnabled={voiceEnabled}
-            onToggleListening={toggleListening}
-            onToggleMute={() => setVoiceEnabled(!voiceEnabled)}
+            onToggleListening={() => {
+              if (!user) {
+                toast.info("Please sign in or register to use Voice Assistant & Commands");
+                setAuthModalOpen(true);
+                return;
+              }
+              toggleListening();
+            }}
+            onToggleMute={() => {
+              if (!user) {
+                toast.info("Please sign in or register to customize Voice Co-Pilot audio");
+                setAuthModalOpen(true);
+                return;
+              }
+              setVoiceEnabled(!voiceEnabled);
+            }}
           />
 
           <div style={{ width: "1px", height: "24px", background: "rgba(255, 255, 255, 0.15)" }} />
 
           {/* Squad Convoy Button */}
           <button
-            onClick={() => setSquadModalOpen(true)}
+            onClick={() => {
+              if (!user) {
+                toast.info("Please sign in or register to join or create a rider squad convoy");
+                setAuthModalOpen(true);
+                return;
+              }
+              setSquadModalOpen(true);
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -2143,7 +2200,14 @@ export default function Map() {
 
           {/* Monsoon Weather Radar Toggle */}
           <button
-            onClick={() => setWeatherRadarEnabled(!weatherRadarEnabled)}
+            onClick={() => {
+              if (!user) {
+                toast.info("Please sign in or register to access Live Monsoon Rain Radar");
+                setAuthModalOpen(true);
+                return;
+              }
+              setWeatherRadarEnabled(!weatherRadarEnabled);
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -2166,7 +2230,14 @@ export default function Map() {
 
           {/* City Leaderboard Button */}
           <button
-            onClick={() => setLeaderboardModalOpen(true)}
+            onClick={() => {
+              if (!user) {
+                toast.info("Please sign in or register to view Rider Rankings & Leaderboard");
+                setAuthModalOpen(true);
+                return;
+              }
+              setLeaderboardModalOpen(true);
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -2189,7 +2260,14 @@ export default function Map() {
 
           {/* Offline Map Pack Button */}
           <button
-            onClick={() => setOfflineModalOpen(true)}
+            onClick={() => {
+              if (!user) {
+                toast.info("Please sign in or register to download Offline Highway Map Packs");
+                setAuthModalOpen(true);
+                return;
+              }
+              setOfflineModalOpen(true);
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -2211,6 +2289,11 @@ export default function Map() {
           {/* Map Theme Toggle (Dark / Satellite / Neon Fog HUD) */}
           <button
             onClick={() => {
+              if (!user) {
+                toast.info("Please sign in or register to customize map styles & HUD themes");
+                setAuthModalOpen(true);
+                return;
+              }
               const nextTheme = mapTheme === "dark" ? "satellite" : mapTheme === "satellite" ? "neon_fog" : "dark";
               handleThemeChange(nextTheme);
             }}
@@ -2235,7 +2318,14 @@ export default function Map() {
 
           {/* 1-Tap Emergency SOS (Red Pulsing) */}
           <button
-            onClick={() => setSosModalOpen(true)}
+            onClick={() => {
+              if (!user) {
+                toast.info("Please sign in or register to access Emergency SOS");
+                setAuthModalOpen(true);
+                return;
+              }
+              setSosModalOpen(true);
+            }}
             style={{
               display: "flex",
               alignItems: "center",

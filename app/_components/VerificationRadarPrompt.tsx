@@ -11,6 +11,7 @@ interface VerificationRadarPromptProps {
   distanceMeters: number;
   onDismiss: () => void;
   onVerified: (hazardId: number, isResolved: boolean) => void;
+  onRequireAuth?: () => void;
 }
 
 export default function VerificationRadarPrompt({
@@ -18,6 +19,7 @@ export default function VerificationRadarPrompt({
   distanceMeters,
   onDismiss,
   onVerified,
+  onRequireAuth,
 }: VerificationRadarPromptProps) {
   const { idToken } = useAuth();
   const [submitting, setSubmitting] = useState<"still_there" | "fixed" | null>(null);
@@ -32,7 +34,8 @@ export default function VerificationRadarPrompt({
 
   const handleVote = async (vote: "still_there" | "fixed") => {
     if (!idToken) {
-      toast.info("Sign in to earn Karma for verifying road hazards!");
+      toast.info("Please sign in or register to verify road hazards & earn Karma!");
+      onRequireAuth?.();
       onDismiss();
       return;
     }
