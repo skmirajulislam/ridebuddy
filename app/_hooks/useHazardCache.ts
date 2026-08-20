@@ -11,6 +11,13 @@ export interface CachedHazard {
   lat: number;
   lng: number;
   severity: number;
+  image_url?: string | null;
+  reporter_name?: string | null;
+  reporter_handle?: string | null;
+  reporter_avatar?: string | null;
+  reporter_bio?: string | null;
+  reporter_hobbies?: string[];
+  created_at?: string;
 }
 
 const isClient = typeof window !== "undefined";

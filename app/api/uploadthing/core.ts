@@ -10,11 +10,24 @@ export const ourFileRouter = {
     },
   })
     .middleware(async () => {
-      // Return metadata to attach to the uploaded file
       return { uploadedAt: new Date().toISOString() };
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("[UploadThing] Hazard image uploaded:", file.url, "metadata:", metadata);
+      return { url: file.url, name: file.name, size: file.size };
+    }),
+
+  profileAvatarUploader: f({
+    image: {
+      maxFileSize: "4MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async () => {
+      return { uploadedAt: new Date().toISOString() };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("[UploadThing] Profile avatar uploaded:", file.url, "metadata:", metadata);
       return { url: file.url, name: file.name, size: file.size };
     }),
 } satisfies FileRouter;

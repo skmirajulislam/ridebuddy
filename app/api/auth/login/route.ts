@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { comparePassword, generateToken } from "@/lib/auth";
+import { generateUniqueHandle } from "@/lib/utils/handle";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     const cleanEmail = email.toLowerCase().trim();
 
     const result = await pool.query(
-      "SELECT id, name, email, password_hash, role FROM users WHERE email = $1",
+      "SELECT id, name, email, password_hash, role, handle, avatar_url, bio, hobbies FROM users WHERE email = $1",
       [cleanEmail]
     );
 
@@ -38,7 +39,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const token = generateToken(user);
+    let handle = user.handle;
+    if (!handle) {
+      handle = await generateUniqueHandle(user.name || user.email || "user");
+      await pool.query("UPDATE users SET handle = $1 WHERE id = $2", [handle, user.id]);
+    }
+
+    const token = generateToken({ ...user, handle });
 
     return NextResponse.json({
       token,
@@ -47,6 +54,10 @@ export async function POST(req: NextRequest) {
         name: user.name,
         email: user.email,
         role: user.role || "user",
+        handle,
+        avatar_url: user.avatar_url || null,
+        bio: user.bio || null,
+        hobbies: Array.isArray(user.hobbies) ? user.hobbies : [],
       },
     });
   } catch (err: unknown) {

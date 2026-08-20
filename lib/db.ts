@@ -2,7 +2,6 @@ import { Pool, PoolConfig } from "pg";
 
 // Global singleton pool for Next.js (avoids creating new pools on each API request or hot reload)
 declare global {
-  // eslint-disable-next-line no-var
   var _pgPool: Pool | undefined;
 }
 

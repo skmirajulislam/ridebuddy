@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Clock, Milestone, AlertTriangle, Navigation, X, ShieldAlert } from "lucide-react";
+import { Clock, Milestone, AlertTriangle, Navigation, X } from "lucide-react";
 
 interface RoutePanelProps {
   distance: number | null;

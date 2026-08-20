@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
+import { generateUniqueHandle } from "@/lib/utils/handle";
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     }
 
     const result = await pool.query(
-      "SELECT id, name, email, role, created_at FROM users WHERE id = $1",
+      "SELECT id, name, email, role, handle, avatar_url, bio, hobbies, created_at FROM users WHERE id = $1",
       [authUser.userId]
     );
 
@@ -21,7 +22,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
-    return NextResponse.json(result.rows[0]);
+    const row = result.rows[0];
+    let handle = row.handle;
+    if (!handle) {
+      handle = await generateUniqueHandle(row.name || row.email || "user");
+      await pool.query("UPDATE users SET handle = $1 WHERE id = $2", [handle, row.id]);
+    }
+
+    return NextResponse.json({
+      ...row,
+      handle,
+      hobbies: Array.isArray(row.hobbies) ? row.hobbies : [],
+    });
   } catch (err: unknown) {
     console.error("[Auth] getMe error:", (err as Error).message);
     return NextResponse.json(

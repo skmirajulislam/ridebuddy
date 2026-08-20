@@ -19,10 +19,11 @@ import RouteSelector from "./RouteSelector";
 import NavigationPanel from "./NavigationPanel";
 import WarningBanner from "./WarningBanner";
 import AuthModal from "./AuthModal";
+import ProfileModal from "./ProfileModal";
+import ContributorCard from "./ContributorCard";
 
 import {
   Shield,
-  ShieldAlert,
   Crosshair,
   Locate,
   Navigation,
@@ -90,8 +91,8 @@ interface RoutesResponse {
   allRoutes: RouteData[];
   analysis: RouteAnalysis;
   routeAnalyses?: RouteAnalysis[];
-  routeHazards?: any[][];
-  hazardsOnRoute: any[];
+  routeHazards?: CachedHazard[][];
+  hazardsOnRoute: CachedHazard[];
 }
 
 interface NavigationState {
@@ -101,7 +102,7 @@ interface NavigationState {
   bearing: number;
   routeCoordinates: [number, number][];
   steps: RouteStep[];
-  hazardsOnRoute: any[];
+  hazardsOnRoute: CachedHazard[];
   announcedDistances: Set<number>;
   announcedHazards: Set<string>;
 }
@@ -143,7 +144,6 @@ export default function Map() {
   const endMarker = useRef<maplibregl.Marker | null>(null);
   const activePopup = useRef<maplibregl.Popup | null>(null);
   const notifiedHazardIds = useRef<Set<number>>(new Set());
-  const isClickToSelectModeRef = useRef<boolean>(false);
 
   // Search state
   const [fromQuery, setFromQuery] = useState("");
@@ -166,7 +166,50 @@ export default function Map() {
   const [hazards, setHazards] = useState<CachedHazard[]>([]);
   const [mapPickTarget, setMapPickTarget] = useState<"from" | "to" | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(true);
+
+  // Contributor modal state
+  const [contributorModal, setContributorModal] = useState<{
+    isOpen: boolean;
+    handleOrId: string | null;
+    initialData?: {
+      name?: string | null;
+      handle?: string | null;
+      avatar_url?: string | null;
+      bio?: string | null;
+      hobbies?: string[];
+    };
+  }>({
+    isOpen: false,
+    handleOrId: null,
+  });
+
+  // Attach global helper for map popup clicks
+  useEffect(() => {
+    (window as unknown as {
+      __openContributorModal?: (
+        handle: string,
+        data?: {
+          name?: string | null;
+          handle?: string | null;
+          avatar_url?: string | null;
+          bio?: string | null;
+          hobbies?: string[];
+        }
+      ) => void;
+    }).__openContributorModal = (handle, data) => {
+      setContributorModal({
+        isOpen: true,
+        handleOrId: handle,
+        initialData: data,
+      });
+    };
+
+    return () => {
+      delete (window as unknown as { __openContributorModal?: unknown }).__openContributorModal;
+    };
+  }, []);
 
   // Navigation state
   const [navigation, setNavigation] = useState<NavigationState>({
@@ -182,6 +225,7 @@ export default function Map() {
   });
   const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
   const gpsWatchIdRef = useRef<number | null>(null);
+  const gpsRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const offRouteTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isReroutingRef = useRef<boolean>(false);
   const mapPickTargetRef = useRef<"from" | "to" | null>(null);
@@ -192,7 +236,7 @@ export default function Map() {
   }, [mapPickTarget]);
 
   const apiKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-  const { position, error: locationError } = useUserLocation();
+  const { position } = useUserLocation();
   const { permission, requestPermission, sendNotification } = useNotifications();
   const { getCache, setCache } = useHazardCache();
   const { user, idToken } = useAuth();
@@ -283,6 +327,7 @@ export default function Map() {
       map.current?.remove();
       map.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
   // ── Hazard Layer Init ─────────────────────────────────────────────────────
@@ -344,6 +389,13 @@ export default function Map() {
         id: number;
         type: string;
         severity: number;
+        image_url?: string;
+        reporter_name?: string;
+        reporter_handle?: string;
+        reporter_avatar?: string;
+        reporter_bio?: string;
+        reporter_hobbies?: string;
+        created_at?: string;
       };
       const geom = e.features[0].geometry as Point;
       const coords = geom.coordinates as [number, number];
@@ -352,18 +404,63 @@ export default function Map() {
 
       const color = severityColor(props.severity || 1);
       const severityLabel = ["", "Low", "Medium", "High"][props.severity] ?? "Low";
+      const reporterName = props.reporter_name || "Community Rider";
+      const reporterHandle = props.reporter_handle || `rider_${props.id}`;
+      const reporterAvatar = props.reporter_avatar || "";
+      const reporterBio = props.reporter_bio || "";
+      let hobbiesList: string[] = [];
+      try {
+        if (props.reporter_hobbies) {
+          hobbiesList = typeof props.reporter_hobbies === "string" ? JSON.parse(props.reporter_hobbies) : props.reporter_hobbies;
+        }
+      } catch {
+        // fallback
+      }
 
-      activePopup.current = new maplibregl.Popup({ offset: 16, maxWidth: "220px" })
+      const hobbiesSnippet = Array.isArray(hobbiesList) && hobbiesList.length > 0
+        ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+            ${hobbiesList.slice(0, 3).map(h => `<span style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:500">${h}</span>`).join("")}
+           </div>`
+        : "";
+
+      const avatarHtml = reporterAvatar
+        ? `<img src="${reporterAvatar}" alt="${reporterName}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1.5px solid #38bdf8" />`
+        : `<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0284c7,#6366f1);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1.5px solid #38bdf8">${reporterName[0]?.toUpperCase()}</div>`;
+
+      activePopup.current = new maplibregl.Popup({ offset: 16, maxWidth: "260px", className: "hazard-radar-popup" })
         .setLngLat(coords)
         .setHTML(
-          `<div style="padding:14px 16px;font-family:system-ui,sans-serif">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-              <span style="width:11px;height:11px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
-              <strong style="color:#fff;font-size:15px;text-transform:capitalize">${props.type}</strong>
+          `<div style="padding:14px 16px;font-family:system-ui,sans-serif;background:rgba(15,23,42,0.96);border-radius:14px;color:#f8fafc">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+                <strong style="color:#fff;font-size:14px;text-transform:capitalize">${props.type}</strong>
+              </div>
+              <span style="background:${color}22;color:${color};border:1px solid ${color}55;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">
+                ${severityLabel}
+              </span>
             </div>
-            <span style="display:inline-flex;align-items:center;gap:4px;background:${color}22;color:${color};border:1px solid ${color}55;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700">
-              ${severityLabel} severity
-            </span>
+
+            <!-- Contributor Profile Badge -->
+            <div 
+              id="contributor-btn-${props.id}"
+              onclick="window.__openContributorModal && window.__openContributorModal('${reporterHandle}', { name: '${reporterName.replace(/'/g, "\\'")}', handle: '${reporterHandle}', avatar_url: '${reporterAvatar}', bio: '${reporterBio.replace(/'/g, "\\'")}', hobbies: ${JSON.stringify(hobbiesList)} })"
+              style="margin-top:10px;padding:8px 10px;background:rgba(30,41,59,0.8);border:1px solid rgba(56,189,248,0.25);border-radius:10px;cursor:pointer;transition:all 0.2s"
+              title="Click to view full contributor profile"
+            >
+              <div style="display:flex;align-items:center;gap:8px">
+                ${avatarHtml}
+                <div style="min-width:0;flex:1">
+                  <div style="font-size:12px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    ${reporterName}
+                  </div>
+                  <div style="font-size:11px;color:#38bdf8;font-family:monospace;font-weight:600">
+                    @${reporterHandle.replace(/^@/, '')}
+                  </div>
+                </div>
+              </div>
+              ${hobbiesSnippet}
+            </div>
           </div>`
         )
         .addTo(m);
@@ -387,7 +484,18 @@ export default function Map() {
       features: hazardList.map((h) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [h.lng, h.lat] },
-        properties: { id: h.id, type: h.type, severity: h.severity || 1 },
+        properties: {
+          id: h.id,
+          type: h.type,
+          severity: h.severity || 1,
+          image_url: h.image_url || "",
+          reporter_name: h.reporter_name || "",
+          reporter_handle: h.reporter_handle || "",
+          reporter_avatar: h.reporter_avatar || "",
+          reporter_bio: h.reporter_bio || "",
+          reporter_hobbies: Array.isArray(h.reporter_hobbies) ? JSON.stringify(h.reporter_hobbies) : "[]",
+          created_at: h.created_at || "",
+        },
       })),
     };
 
@@ -584,7 +692,7 @@ export default function Map() {
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
       );
       const items = await res.json();
-      return items.map((item: any) => ({
+      return items.map((item: { display_name: string; lon: string; lat: string }) => ({
         place_name: item.display_name,
         center: [parseFloat(item.lon), parseFloat(item.lat)] as [number, number],
       }));
@@ -967,76 +1075,76 @@ export default function Map() {
       announcedHazards: new Set(),
     });
 
-    // GPS error handler with auto-reconnect
+    // Adaptive GPS tracking for navigation
+    let useHighAccuracy = true;
+
     const handleGPSError = (error: GeolocationPositionError) => {
-      // Safely log error details - avoid logging the full object
       const errorCode = error?.code;
-      const errorMsg = error?.message || 'unknown';
-      console.error(`GPS error - Code: ${errorCode}, Message: ${errorMsg}`);
-      
-      let userMsg = "GPS unavailable. ";
-      
-      // Handle case where error object might be malformed
-      if (typeof errorCode === 'undefined' || errorCode === null) {
-        userMsg += "An unknown error occurred. Please check browser permissions.";
-        setWarning(userMsg);
+      const errorMsg = error?.message || "unknown";
+      console.warn(`GPS tracking status - Code: ${errorCode}, Message: ${errorMsg}`);
+
+      if (errorCode === 1) {
+        // PERMISSION_DENIED
+        setWarning("Please enable location permissions in your browser settings.");
         exitNavigation();
-      } else {
-        switch (errorCode) {
-          case 1: // PERMISSION_DENIED
-            userMsg += "Please enable location permissions in your browser settings.";
-            setWarning(userMsg);
-            exitNavigation();
-            break;
-          case 2: // POSITION_UNAVAILABLE
-            userMsg += "Location information is unavailable. Are you indoors?";
-            setWarning(userMsg);
-            exitNavigation();
-            break;
-          case 3: // TIMEOUT
-            userMsg += "Location request timed out. Reconnecting...";
-            setWarning(userMsg);
-            // Immediately restart GPS watch on timeout
-            if (gpsWatchIdRef.current) {
-              navigator.geolocation.clearWatch(gpsWatchIdRef.current);
-            }
-            // Retry after a short delay
-            setTimeout(() => {
-              if (navigation.isActive) {
-                const newWatchId = navigator.geolocation.watchPosition(
-                  handleNavigationPosition,
-                  handleGPSError, // Recursively reuse this handler
-                  {
-                    enableHighAccuracy: true,
-                    maximumAge: 1000,
-                    timeout: 10000,
-                  }
-                );
-                gpsWatchIdRef.current = newWatchId;
-                setWarning("Reconnecting to GPS...");
-              }
-            }, 1000); // Retry after 1 second
-            break;
-          default:
-            userMsg += `Error code ${errorCode}`;
-            setWarning(userMsg);
-            exitNavigation();
+        return;
+      }
+
+      // If high accuracy GPS timed out or is unavailable (common on laptops / indoor Wi-Fi), switch to standard accuracy
+      if (useHighAccuracy && (errorCode === 3 || errorCode === 2)) {
+        useHighAccuracy = false;
+      }
+
+      // Reconnect cleanly in the background without abruptly aborting navigation
+      if (gpsRetryTimerRef.current) {
+        clearTimeout(gpsRetryTimerRef.current);
+      }
+      gpsRetryTimerRef.current = setTimeout(() => {
+        if (gpsWatchIdRef.current !== null && typeof navigator !== "undefined" && navigator.geolocation) {
+          navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+          gpsWatchIdRef.current = null;
         }
+        startWatching();
+      }, 2000);
+    };
+
+    const startWatching = () => {
+      if (typeof navigator === "undefined" || !navigator.geolocation) return;
+      try {
+        const watchId = navigator.geolocation.watchPosition(
+          handleNavigationPosition,
+          handleGPSError,
+          {
+            enableHighAccuracy: useHighAccuracy,
+            maximumAge: useHighAccuracy ? 3000 : 20000,
+            timeout: useHighAccuracy ? 15000 : 30000,
+          }
+        );
+        gpsWatchIdRef.current = watchId;
+      } catch (e) {
+        console.warn("Navigation geolocation watcher error:", e);
       }
     };
 
-    // Start high-accuracy GPS tracking
+    // If current user position is already available from useUserLocation, initialize navigation immediately
+    if (position) {
+      handleNavigationPosition({
+        coords: {
+          latitude: position.lat,
+          longitude: position.lng,
+          accuracy: position.accuracy,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      } as GeolocationPosition);
+    }
+
+    // Start watching position
     if (navigator.geolocation) {
-      const watchId = navigator.geolocation.watchPosition(
-        handleNavigationPosition,
-        handleGPSError,
-        {
-          enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 10000,
-        }
-      );
-      gpsWatchIdRef.current = watchId;
+      startWatching();
     } else {
       setWarning("Geolocation is not supported by your browser");
       exitNavigation();
@@ -1052,6 +1160,7 @@ export default function Map() {
         duration: 1000,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allRoutesData, selectedRouteIndex, end, position]);
 
   // Calculate progress along route
@@ -1059,10 +1168,6 @@ export default function Map() {
     if (!navigation.isActive || navigation.routeCoordinates.length === 0) return;
 
     const currentPos = turf.point([lng, lat]);
-    const routeLine = turf.lineString(navigation.routeCoordinates);
-    
-    // Find nearest point on route
-    const snapped = turf.nearestPointOnLine(routeLine, currentPos);
     const currentStep = navigation.steps[navigation.currentStepIndex];
     
     // Calculate distance to next maneuver
@@ -1089,7 +1194,7 @@ export default function Map() {
       }
 
       const nearbyNavHazard = navigation.hazardsOnRoute.find((hazard) => {
-        const hazardId = String(hazard.id ?? hazard._id ?? `${hazard.type}-${hazard.lat}-${hazard.lng}`);
+        const hazardId = String(hazard.id ?? `${hazard.type}-${hazard.lat}-${hazard.lng}`);
         return (
           !navigation.announcedHazards.has(hazardId) &&
           haversineDistance(lat, lng, hazard.lat, hazard.lng) < PROXIMITY_WARNING_RADIUS
@@ -1099,7 +1204,6 @@ export default function Map() {
       if (nearbyNavHazard) {
         const hazardId = String(
           nearbyNavHazard.id ??
-            nearbyNavHazard._id ??
             `${nearbyNavHazard.type}-${nearbyNavHazard.lat}-${nearbyNavHazard.lng}`
         );
         const hazardDistance = haversineDistance(lat, lng, nearbyNavHazard.lat, nearbyNavHazard.lng);
@@ -1165,6 +1269,7 @@ export default function Map() {
         offRouteTimerRef.current = null;
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
   // Handle GPS position updates during navigation
@@ -1306,8 +1411,12 @@ export default function Map() {
 
   // Exit navigation
   const exitNavigation = useCallback(() => {
-    // Stop GPS tracking
-    if (gpsWatchIdRef.current !== null) {
+    // Stop GPS tracking & retry timer
+    if (gpsRetryTimerRef.current) {
+      clearTimeout(gpsRetryTimerRef.current);
+      gpsRetryTimerRef.current = null;
+    }
+    if (gpsWatchIdRef.current !== null && typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.clearWatch(gpsWatchIdRef.current);
       gpsWatchIdRef.current = null;
     }
@@ -1348,7 +1457,10 @@ export default function Map() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (gpsWatchIdRef.current !== null) {
+      if (gpsRetryTimerRef.current) {
+        clearTimeout(gpsRetryTimerRef.current);
+      }
+      if (gpsWatchIdRef.current !== null && typeof navigator !== "undefined" && navigator.geolocation) {
         navigator.geolocation.clearWatch(gpsWatchIdRef.current);
       }
       if (offRouteTimerRef.current) {
@@ -1707,13 +1819,62 @@ export default function Map() {
         />
       )}
 
-      {/* ── Dashboard / profile link (top-right) ─────────────────────── */}
+      {/* ── Profile / Dashboard Trigger (top-right) ──────────────────── */}
       {user ? (
-        <Link href="/dashboard" className="map-dashboard-btn" aria-label="Dashboard">
-          <span className="map-dashboard-btn__avatar">
-            {(user.name || "U")[0].toUpperCase()}
-          </span>
-        </Link>
+        <div style={{ position: "absolute", top: "16px", right: "60px", zIndex: 10, display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            id="map-profile-btn"
+            onClick={() => setProfileModalOpen(true)}
+            aria-label="User Profile"
+            title={`View Profile: ${user.name} (@${user.handle || "rider"})`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "rgba(15, 23, 42, 0.88)",
+              backdropFilter: "blur(14px)",
+              border: "1.5px solid rgba(56, 189, 248, 0.4)",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4), 0 0 16px rgba(56, 189, 248, 0.2)",
+              borderRadius: "999px",
+              padding: "4px 14px 4px 4px",
+              cursor: "pointer",
+              transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          >
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "linear-gradient(135deg, #0284c7, #6366f1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "13px",
+                color: "#fff",
+                border: "1.5px solid #38bdf8",
+                flexShrink: 0,
+              }}
+            >
+              {user.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatar_url} alt={user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                (user.name || "U")[0]?.toUpperCase()
+              )}
+            </div>
+            <div style={{ textAlign: "left", lineHeight: 1.15 }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#f8fafc", maxWidth: "90px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {user.name.split(" ")[0]}
+              </div>
+              <div style={{ fontSize: "10px", color: "#38bdf8", fontFamily: "monospace", fontWeight: 600 }}>
+                @{user.handle ? user.handle.replace(/^@/, '') : `rider_${user.id}`}
+              </div>
+            </div>
+          </button>
+        </div>
       ) : (
         <button
           onClick={() => setAuthModalOpen(true)}
@@ -1739,6 +1900,23 @@ export default function Map() {
           <span>Sign In</span>
         </button>
       )}
+
+      {/* ── Profile Modal (View & Edit Profile / Hobbies) ────────────────── */}
+      <ProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        onProfileUpdated={() => {
+          loadHazards();
+        }}
+      />
+
+      {/* ── Contributor Card (Public Profile Popup on Map) ────────────────── */}
+      <ContributorCard
+        isOpen={contributorModal.isOpen}
+        handleOrId={contributorModal.handleOrId}
+        initialData={contributorModal.initialData}
+        onClose={() => setContributorModal({ isOpen: false, handleOrId: null })}
+      />
 
       {/* ── Auth Modal (In-Place Popup) ────────────────────────────────── */}
       <AuthModal
@@ -1767,7 +1945,7 @@ export default function Map() {
         userLng={position?.lng ?? null}
         apiUrl={API_URL}
         onSuccess={handleReportSuccess}
-        idToken={idToken} // NEW — passes auth token for protected POST
+        idToken={idToken}
       />
     </div>
   );

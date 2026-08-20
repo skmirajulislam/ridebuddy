@@ -2,6 +2,34 @@ import axios from "axios";
 import pool from "../db";
 import type { HazardRecord } from "./hazard.service";
 
+export interface OsrmRoute {
+  geometry: {
+    coordinates: [number, number][];
+    type: string;
+  };
+  legs?: {
+    steps: {
+      maneuver: {
+        type: string;
+        modifier?: string;
+        location: [number, number];
+      };
+      name: string;
+      distance: number;
+      duration: number;
+      geometry: {
+        coordinates: [number, number][];
+        type: string;
+      };
+    }[];
+    distance: number;
+    duration: number;
+  }[];
+  distance: number;
+  duration: number;
+  [key: string]: unknown;
+}
+
 export interface RouteAnalysis {
   hazardCount: number;
   severitySum: number;
@@ -13,8 +41,8 @@ export interface RouteAnalysis {
 }
 
 export interface RankedRouteResult {
-  bestRoute: any;
-  allRoutes: any[];
+  bestRoute: OsrmRoute | null;
+  allRoutes: OsrmRoute[];
   routeAnalyses: RouteAnalysis[];
   routeHazards: HazardRecord[][];
   analysis: RouteAnalysis | null;
@@ -66,14 +94,14 @@ export async function getRoute(from: string, to: string): Promise<RankedRouteRes
 
   console.log("[Routing] Requesting OSRM:", url);
   const response = await axios.get(url);
-  const routes = response.data.routes || [];
+  const routes: OsrmRoute[] = response.data.routes || [];
 
   if (routes.length === 0) {
     throw new Error("No routes found between the provided locations.");
   }
 
   const rankedRoutes: {
-    route: any;
+    route: OsrmRoute;
     analysis: RouteAnalysis;
     hazardsOnRoute: HazardRecord[];
   }[] = [];

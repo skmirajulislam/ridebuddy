@@ -2,9 +2,9 @@
 
 // app/_hooks/useAuth.ts
 // Custom JWT auth — no Firebase. Tokens stored in sessionStorage.
-// Provides: user, loading, idToken, signIn, signUp, resetPassword, signOut.
+// Provides: user, loading, idToken, signIn, signUp, resetPassword, signOut, updateUser.
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const TOKEN_KEY = "rb_token";
@@ -15,6 +15,10 @@ export interface AuthUser {
   name: string;
   email: string;
   role?: string;
+  handle?: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+  hobbies?: string[];
 }
 
 interface AuthState {
@@ -25,6 +29,7 @@ interface AuthState {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   resetPassword: (email: string) => Promise<string>;
   signOut: () => void;
+  updateUser: (updatedData: Partial<AuthUser>) => void;
 }
 
 async function apiFetch(path: string, body: object) {
@@ -39,25 +44,26 @@ async function apiFetch(path: string, body: object) {
   return data;
 }
 
-export function useAuth(): AuthState {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [idToken, setIdToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Restore session from sessionStorage on mount
-  useEffect(() => {
-    try {
-      const storedToken = sessionStorage.getItem(TOKEN_KEY) || sessionStorage.getItem("gov_token");
-      const storedUser = sessionStorage.getItem(USER_KEY) || sessionStorage.getItem("gov_user");
-      if (storedToken && storedUser) {
-        setIdToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      }
-    } catch {
-      // sessionStorage not available (SSR) — skip
+function getInitialAuthState(): { user: AuthUser | null; idToken: string | null } {
+  if (typeof window === "undefined") {
+    return { user: null, idToken: null };
+  }
+  try {
+    const storedToken = sessionStorage.getItem(TOKEN_KEY) || sessionStorage.getItem("gov_token");
+    const storedUser = sessionStorage.getItem(USER_KEY) || sessionStorage.getItem("gov_user");
+    if (storedToken && storedUser) {
+      return { user: JSON.parse(storedUser), idToken: storedToken };
     }
-    setLoading(false);
-  }, []);
+  } catch {
+    // sessionStorage not available (SSR) — skip
+  }
+  return { user: null, idToken: null };
+}
+
+export function useAuth(): AuthState {
+  const [user, setUser] = useState<AuthUser | null>(() => getInitialAuthState().user);
+  const [idToken, setIdToken] = useState<string | null>(() => getInitialAuthState().idToken);
+  const [loading, setLoading] = useState(false);
 
   const persist = (token: string, userData: AuthUser) => {
     sessionStorage.setItem(TOKEN_KEY, token);
@@ -70,21 +76,41 @@ export function useAuth(): AuthState {
     setUser(userData);
   };
 
+  const updateUser = (updatedData: Partial<AuthUser>) => {
+    if (!user) return;
+    const merged = { ...user, ...updatedData };
+    sessionStorage.setItem(USER_KEY, JSON.stringify(merged));
+    if (merged.role === "official") {
+      sessionStorage.setItem("gov_user", JSON.stringify(merged));
+    }
+    setUser(merged);
+  };
+
   const signIn = async (email: string, password: string) => {
-    const data = await apiFetch("/api/auth/login", { email, password });
-    persist(data.token, data.user);
+    setLoading(true);
+    try {
+      const data = await apiFetch("/api/auth/login", { email, password });
+      persist(data.token, data.user);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signUp = async (email: string, password: string, displayName: string) => {
-    const data = await apiFetch("/api/auth/register", {
-      email,
-      password,
-      name: displayName,
-    });
-    persist(data.token, data.user);
+    setLoading(true);
+    try {
+      const data = await apiFetch("/api/auth/register", {
+        email,
+        password,
+        name: displayName,
+      });
+      persist(data.token, data.user);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const resetPassword = async (_email: string): Promise<string> => {
+  const resetPassword = async (): Promise<string> => {
     throw new Error(
       "Password reset via email is not configured yet. Please contact support or create a new account."
     );
@@ -99,5 +125,5 @@ export function useAuth(): AuthState {
     setUser(null);
   };
 
-  return { user, loading, idToken, signIn, signUp, resetPassword, signOut };
+  return { user, loading, idToken, signIn, signUp, resetPassword, signOut, updateUser };
 }

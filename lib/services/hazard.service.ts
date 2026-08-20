@@ -15,6 +15,11 @@ export interface HazardRecord {
   resolved_at: string | null;
   resolved_by_user_id: number | null;
   distance_meters?: number;
+  reporter_name?: string | null;
+  reporter_handle?: string | null;
+  reporter_avatar?: string | null;
+  reporter_bio?: string | null;
+  reporter_hobbies?: string[];
 }
 
 export interface CreateHazardParams {
@@ -79,7 +84,22 @@ export async function createHazard(params: CreateHazardParams): Promise<HazardRe
     }
 
     await client.query("COMMIT");
-    return created;
+
+    // Retrieve full hazard with reporter profile
+    const fullHazard = await pool.query<HazardRecord>(
+      `SELECT h.*,
+              u.name AS reporter_name,
+              u.handle AS reporter_handle,
+              u.avatar_url AS reporter_avatar,
+              u.bio AS reporter_bio,
+              COALESCE(u.hobbies, '{}') AS reporter_hobbies
+       FROM hazards h
+       LEFT JOIN users u ON h.user_id = u.id
+       WHERE h.id = $1`,
+      [created.id]
+    );
+
+    return fullHazard.rows[0] || created;
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -98,22 +118,26 @@ export async function checkDuplicate(
   radiusMeters = 30
 ): Promise<HazardRecord | null> {
   const result = await pool.query<HazardRecord>(
-    `SELECT *,
+    `SELECT h.*,
       (2 * 6371000 * asin(
         sqrt(
-          sin(radians((lat - $1) / 2)) ^ 2
-          + cos(radians($1)) * cos(radians(lat))
-          * sin(radians((lng - $2) / 2)) ^ 2
+          sin(radians((h.lat - $1) / 2)) ^ 2
+          + cos(radians($1)) * cos(radians(h.lat))
+          * sin(radians((h.lng - $2) / 2)) ^ 2
         )
-      )) AS distance_meters
-     FROM hazards
-     WHERE type = $3
-       AND status != 'resolved'
+      )) AS distance_meters,
+      u.name AS reporter_name,
+      u.handle AS reporter_handle,
+      u.avatar_url AS reporter_avatar
+     FROM hazards h
+     LEFT JOIN users u ON h.user_id = u.id
+     WHERE h.type = $3
+       AND h.status != 'resolved'
        AND (2 * 6371000 * asin(
              sqrt(
-               sin(radians((lat - $1) / 2)) ^ 2
-               + cos(radians($1)) * cos(radians(lat))
-               * sin(radians((lng - $2) / 2)) ^ 2
+               sin(radians((h.lat - $1) / 2)) ^ 2
+               + cos(radians($1)) * cos(radians(h.lat))
+               * sin(radians((h.lng - $2) / 2)) ^ 2
              )
            )) < $4
      ORDER BY distance_meters ASC
@@ -125,7 +149,7 @@ export async function checkDuplicate(
 }
 
 /**
- * Get all hazards or filter by bounding box
+ * Get all hazards or filter by bounding box (includes reporter profiles)
  */
 export async function getHazards(filter?: GetHazardsFilter): Promise<HazardRecord[]> {
   if (
@@ -135,23 +159,38 @@ export async function getHazards(filter?: GetHazardsFilter): Promise<HazardRecor
     filter?.maxLng != null
   ) {
     const result = await pool.query<HazardRecord>(
-      `SELECT * FROM hazards
-       WHERE lat BETWEEN $1 AND $2
-         AND lng BETWEEN $3 AND $4
-       ORDER BY id DESC`,
+      `SELECT h.*,
+              u.name AS reporter_name,
+              u.handle AS reporter_handle,
+              u.avatar_url AS reporter_avatar,
+              u.bio AS reporter_bio,
+              COALESCE(u.hobbies, '{}') AS reporter_hobbies
+       FROM hazards h
+       LEFT JOIN users u ON h.user_id = u.id
+       WHERE h.lat BETWEEN $1 AND $2
+         AND h.lng BETWEEN $3 AND $4
+       ORDER BY h.id DESC`,
       [filter.minLat, filter.maxLat, filter.minLng, filter.maxLng]
     );
     return result.rows;
   }
 
   const result = await pool.query<HazardRecord>(
-    `SELECT * FROM hazards ORDER BY id DESC`
+    `SELECT h.*,
+            u.name AS reporter_name,
+            u.handle AS reporter_handle,
+            u.avatar_url AS reporter_avatar,
+            u.bio AS reporter_bio,
+            COALESCE(u.hobbies, '{}') AS reporter_hobbies
+     FROM hazards h
+     LEFT JOIN users u ON h.user_id = u.id
+     ORDER BY h.id DESC`
   );
   return result.rows;
 }
 
 /**
- * Get hazards within radiusMeters of a coordinate
+ * Get hazards within radiusMeters of a coordinate (includes reporter profiles)
  */
 export async function getNearbyHazards(
   lat: number,
@@ -159,20 +198,26 @@ export async function getNearbyHazards(
   radiusMeters = 500
 ): Promise<HazardRecord[]> {
   const result = await pool.query<HazardRecord>(
-    `SELECT *,
+    `SELECT h.*,
       (2 * 6371000 * asin(
         sqrt(
-          sin(radians((lat - $1) / 2)) ^ 2
-          + cos(radians($1)) * cos(radians(lat))
-          * sin(radians((lng - $2) / 2)) ^ 2
+          sin(radians((h.lat - $1) / 2)) ^ 2
+          + cos(radians($1)) * cos(radians(h.lat))
+          * sin(radians((h.lng - $2) / 2)) ^ 2
         )
-      )) AS distance_meters
-     FROM hazards
+      )) AS distance_meters,
+      u.name AS reporter_name,
+      u.handle AS reporter_handle,
+      u.avatar_url AS reporter_avatar,
+      u.bio AS reporter_bio,
+      COALESCE(u.hobbies, '{}') AS reporter_hobbies
+     FROM hazards h
+     LEFT JOIN users u ON h.user_id = u.id
      WHERE (2 * 6371000 * asin(
               sqrt(
-                sin(radians((lat - $1) / 2)) ^ 2
-                + cos(radians($1)) * cos(radians(lat))
-                * sin(radians((lng - $2) / 2)) ^ 2
+                sin(radians((h.lat - $1) / 2)) ^ 2
+                + cos(radians($1)) * cos(radians(h.lat))
+                * sin(radians((h.lng - $2) / 2)) ^ 2
               )
             )) < $3
      ORDER BY distance_meters ASC`,

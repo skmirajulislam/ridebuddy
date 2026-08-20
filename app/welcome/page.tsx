@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Shield,
   Camera,
@@ -28,11 +29,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import AuthModal from "../_components/AuthModal";
+import ProfileModal from "../_components/ProfileModal";
+import { useAuth } from "../_hooks/useAuth";
 
 export default function WelcomePage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const openAuth = (mode: "signin" | "signup") => {
     setAuthMode(mode);
@@ -89,20 +100,71 @@ export default function WelcomePage() {
 
           {/* Right CTAs */}
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex"
-              onClick={() => openAuth("signin")}
-            >
-              Sign In
-            </Button>
-            <Link href="/">
-              <Button variant="default" size="sm" className="shadow-cyan-500/20">
-                <Navigation className="h-4 w-4" />
-                <span>Launch Map</span>
-              </Button>
-            </Link>
+            {mounted && user ? (
+              <div className="flex items-center gap-2.5">
+                {/* Profile Pill Button */}
+                <button
+                  id="welcome-profile-btn"
+                  onClick={() => setProfileModalOpen(true)}
+                  aria-label="User Profile"
+                  title={`View Profile: ${user.name} (@${user.handle || "rider"})`}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/40 hover:border-cyan-400 shadow-md shadow-cyan-500/10 transition-all text-left cursor-pointer"
+                >
+                  <div className="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-xs text-white border border-cyan-400 shrink-0">
+                    {user.avatar_url ? (
+                      <Image
+                        src={user.avatar_url}
+                        alt={user.name}
+                        width={28}
+                        height={28}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      (user.name || "U")[0]?.toUpperCase()
+                    )}
+                  </div>
+                  <div className="hidden sm:block leading-tight">
+                    <div className="text-xs font-bold text-slate-100 max-w-[100px] truncate">
+                      {user.name.split(" ")[0]}
+                    </div>
+                    <div className="text-[10px] font-mono font-medium text-cyan-400">
+                      @{user.handle ? user.handle.replace(/^@/, "") : `rider_${user.id}`}
+                    </div>
+                  </div>
+                </button>
+
+                <Link href="/dashboard" className="hidden sm:inline-flex">
+                  <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white">
+                    Dashboard
+                  </Button>
+                </Link>
+
+                <Link href="/">
+                  <Button variant="default" size="sm" className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold shadow-lg shadow-cyan-500/25">
+                    <Navigation className="h-4 w-4 fill-black" />
+                    <span>Launch Map</span>
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:inline-flex"
+                  onClick={() => openAuth("signin")}
+                >
+                  Sign In
+                </Button>
+                <Link href="/">
+                  <Button variant="default" size="sm" className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold shadow-lg shadow-cyan-500/25">
+                    <Navigation className="h-4 w-4 fill-black" />
+                    <span>Launch Map</span>
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -593,8 +655,14 @@ export default function WelcomePage() {
         onClose={() => setAuthModalOpen(false)}
         defaultMode={authMode}
         onSuccess={() => {
-          window.location.href = "/";
+          router.push("/");
         }}
+      />
+
+      {/* ── Profile Modal (View & Edit Profile / Hobbies) ────────────────── */}
+      <ProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
       />
 
       {/* ── Footer ────────────────────────────────────────────────────── */}

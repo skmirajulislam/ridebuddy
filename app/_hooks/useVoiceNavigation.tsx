@@ -2,32 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface VoiceSettings {
-	enabled: boolean;
-	rate: number;
-	pitch: number;
-	volume: number;
-}
-
 export function useVoiceNavigation() {
-	const [voiceEnabled, setVoiceEnabled] = useState(true);
-	const [isSupported, setIsSupported] = useState(false);
+	const [isSupported] = useState(() => typeof window !== "undefined" && "speechSynthesis" in window);
+	const [voiceEnabled, setVoiceEnabled] = useState(() => {
+		if (typeof window !== "undefined") {
+			const saved = localStorage.getItem("voiceNavigationEnabled");
+			if (saved !== null) return saved === "true";
+		}
+		return true;
+	});
 	const [isSpeaking, setIsSpeaking] = useState(false);
 	const speechQueueRef = useRef<string[]>([]);
 	const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
-	// Check browser support on mount
-	useEffect(() => {
-		if (typeof window !== "undefined" && "speechSynthesis" in window) {
-			setIsSupported(true);
-
-			// Load saved preference
-			const saved = localStorage.getItem("voiceNavigationEnabled");
-			if (saved !== null) {
-				setVoiceEnabled(saved === "true");
-			}
-		}
-	}, []);
+	const processQueueRef = useRef<() => void>(() => {});
 
 	// Save preference when changed
 	useEffect(() => {
@@ -51,11 +38,16 @@ export function useVoiceNavigation() {
 		}
 
 		// Cancel any ongoing speech
-		if (window.speechSynthesis.speaking) {
+		if (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.speaking) {
 			window.speechSynthesis.cancel();
 		}
 
-		const text = speechQueueRef.current.shift()!;
+		const text = speechQueueRef.current.shift();
+		if (!text) {
+			setIsSpeaking(false);
+			return;
+		}
+
 		const utterance = new SpeechSynthesisUtterance(text);
 
 		// Voice settings
@@ -74,7 +66,9 @@ export function useVoiceNavigation() {
 			currentUtteranceRef.current = null;
 			// Process next item in queue
 			if (speechQueueRef.current.length > 0) {
-				setTimeout(processQueue, 300); // Small delay between utterances
+				setTimeout(() => {
+					processQueueRef.current();
+				}, 300); // Small delay between utterances
 			} else {
 				setIsSpeaking(false);
 			}
@@ -86,12 +80,19 @@ export function useVoiceNavigation() {
 			setIsSpeaking(false);
 			// Try next in queue
 			if (speechQueueRef.current.length > 0) {
-				setTimeout(processQueue, 500);
+				setTimeout(() => {
+					processQueueRef.current();
+				}, 500);
 			}
 		};
 
 		window.speechSynthesis.speak(utterance);
 	}, [isSupported, voiceEnabled]);
+
+	// Keep ref up to date
+	useEffect(() => {
+		processQueueRef.current = processQueue;
+	}, [processQueue]);
 
 	// Speak text (add to queue)
 	const speak = useCallback(
@@ -106,7 +107,7 @@ export function useVoiceNavigation() {
 			}
 
 			// Start processing if not already speaking
-			if (!isSpeaking && !window.speechSynthesis.speaking) {
+			if (!isSpeaking && typeof window !== "undefined" && window.speechSynthesis && !window.speechSynthesis.speaking) {
 				processQueue();
 			}
 		},
@@ -121,7 +122,7 @@ export function useVoiceNavigation() {
 		speechQueueRef.current = [];
 
 		// Cancel current utterance
-		if (window.speechSynthesis.speaking) {
+		if (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.speaking) {
 			window.speechSynthesis.cancel();
 		}
 

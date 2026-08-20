@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 
 export function useNotifications() {
-  const [permission, setPermission] = useState<NotificationPermission>("default");
-
-  useEffect(() => {
-    if (typeof Notification !== "undefined") {
-      setPermission(Notification.permission);
-    }
-  }, []);
+  const [permission, setPermission] = useState<NotificationPermission>(() =>
+    typeof Notification !== "undefined" ? Notification.permission : "default"
+  );
 
   const requestPermission = useCallback(async () => {
     if (typeof Notification === "undefined") return "denied" as NotificationPermission;

@@ -9,16 +9,13 @@ import Sidebar from "./_components/Sidebar";
 import "./gov.css";
 
 function GovLayoutContent({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [user] = useState<AuthUser | null>(() => authService.getUser());
+  const [isReady] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     const stored = authService.getUser();
-    setUser(stored);
-    setIsReady(true);
-
     if (pathname !== "/gov/login" && (!stored || stored.role !== "official")) {
       router.replace("/gov/login");
     }

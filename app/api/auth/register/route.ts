@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { hashPassword, generateToken } from "@/lib/auth";
+import { generateUniqueHandle } from "@/lib/utils/handle";
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,12 +42,13 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await hashPassword(password);
     const displayName = name.trim() || cleanEmail.split("@")[0];
+    const handle = await generateUniqueHandle(displayName);
 
     const result = await pool.query(
-      `INSERT INTO users (name, email, password_hash, created_at, role)
-       VALUES ($1, $2, $3, NOW(), 'user')
-       RETURNING id, name, email, role`,
-      [displayName, cleanEmail, passwordHash]
+      `INSERT INTO users (name, email, password_hash, handle, created_at, role, hobbies)
+       VALUES ($1, $2, $3, $4, NOW(), 'user', '{}')
+       RETURNING id, name, email, role, handle, avatar_url, bio, hobbies`,
+      [displayName, cleanEmail, passwordHash, handle]
     );
 
     const user = result.rows[0];
@@ -60,6 +62,10 @@ export async function POST(req: NextRequest) {
           name: user.name,
           email: user.email,
           role: user.role || "user",
+          handle: user.handle,
+          avatar_url: user.avatar_url || null,
+          bio: user.bio || null,
+          hobbies: Array.isArray(user.hobbies) ? user.hobbies : [],
         },
       },
       { status: 201 }

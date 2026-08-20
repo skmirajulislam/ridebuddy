@@ -14,6 +14,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (res.status === 401) {
     authService.logout();
     if (typeof window !== "undefined" && !window.location.pathname.includes("/gov/login")) {
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/gov/login";
     }
     throw new Error("Session expired");
