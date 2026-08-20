@@ -546,9 +546,9 @@ export default function WelcomePage() {
                   </div>
                 </div>
 
-                <div className="pt-4">
-                  <Link href="/gov/login">
-                    <Button variant="gov" size="lg" className="h-13 px-8 text-base">
+                <div className="pt-4 flex flex-col sm:flex-row items-center justify-center lg:justify-start">
+                  <Link href="/gov/login" className="w-full sm:w-auto">
+                    <Button variant="gov" size="lg" className="w-full sm:w-auto h-13 px-8 text-base flex items-center justify-center gap-2">
                       <span>Access GovOps Operations Portal</span>
                       <ArrowRight className="h-5 w-5" />
                     </Button>
