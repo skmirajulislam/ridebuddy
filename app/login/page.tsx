@@ -3,7 +3,7 @@
 // app/login/page.tsx
 // Email / Password authentication — sign in, sign up, and password reset with sleek Lucide icons.
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -21,7 +21,7 @@ type Mode = "signin" | "signup" | "reset";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { user, signIn, signUp, resetPassword } = useAuth();
 
   const [mode, setMode] = useState<Mode>("signin");
   const [name, setName]         = useState("");
@@ -31,6 +31,12 @@ export default function LoginPage() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      router.replace("/");
+    }
+  }, [user, router]);
 
   const switchMode = (m: Mode) => {
     setMode(m);

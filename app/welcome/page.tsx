@@ -193,14 +193,26 @@ export default function WelcomePage() {
 
           {/* CTA Buttons */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md sm:max-w-none mx-auto">
-            <Button
-              size="lg"
-              className="w-full sm:w-auto text-base h-13 px-8 shadow-xl shadow-cyan-500/20"
-              onClick={() => openAuth("signup")}
-            >
-              <span>Start Navigating Free</span>
-              <ArrowRight className="h-5 w-5" />
-            </Button>
+            {mounted && user ? (
+              <Link href="/" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto text-base h-13 px-8 shadow-xl shadow-cyan-500/25 bg-cyan-500 hover:bg-cyan-400 text-black font-bold flex items-center justify-center gap-2"
+                >
+                  <span>Start Navigating Now</span>
+                  <ArrowRight className="h-5 w-5 fill-black" />
+                </Button>
+              </Link>
+            ) : (
+              <Button
+                size="lg"
+                className="w-full sm:w-auto text-base h-13 px-8 shadow-xl shadow-cyan-500/20"
+                onClick={() => openAuth("signup")}
+              >
+                <span>Start Navigating Free</span>
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+            )}
 
             <Link href="/" className="w-full sm:w-auto">
               <Button variant="secondary" size="lg" className="w-full sm:w-auto text-base h-13 px-8">
@@ -209,7 +221,7 @@ export default function WelcomePage() {
               </Button>
             </Link>
 
-            <Link href="/gov/login" className="w-full sm:w-auto">
+            <Link href={mounted && user?.role === "official" ? "/gov" : "/gov/login"} className="w-full sm:w-auto">
               <Button variant="gov" size="lg" className="w-full sm:w-auto text-base h-13 px-8">
                 <Building2 className="h-5 w-5" />
                 <span>Government Portal</span>
@@ -630,14 +642,26 @@ export default function WelcomePage() {
               Join thousands of smart drivers who navigate with real-time hazard intelligence every day.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button
-                size="lg"
-                className="w-full sm:w-auto h-13 px-8 text-base"
-                onClick={() => openAuth("signup")}
-              >
-                <span>Create Free Account</span>
-                <ArrowRight className="h-5 w-5" />
-              </Button>
+              {mounted && user ? (
+                <Link href="/" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto h-13 px-8 text-base bg-cyan-500 hover:bg-cyan-400 text-black font-bold shadow-xl shadow-cyan-500/25 flex items-center justify-center gap-2"
+                  >
+                    <span>Open Live Radar Map</span>
+                    <ArrowRight className="h-5 w-5 fill-black" />
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto h-13 px-8 text-base"
+                  onClick={() => openAuth("signup")}
+                >
+                  <span>Create Free Account</span>
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+              )}
               <Link href="/" className="w-full sm:w-auto">
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto h-13 px-8 text-base flex items-center gap-2">
                   <span>Launch Live Map</span>
