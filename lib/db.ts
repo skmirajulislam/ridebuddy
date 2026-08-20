@@ -5,7 +5,12 @@ declare global {
   var _pgPool: Pool | undefined;
 }
 
-const connectionString = process.env.DATABASE_URL;
+let connectionString = process.env.DATABASE_URL;
+
+// Normalize sslmode in connection string to eliminate pg warning
+if (connectionString && connectionString.includes("sslmode=require")) {
+  connectionString = connectionString.replace("sslmode=require", "sslmode=verify-full");
+}
 
 function createPool(): Pool {
   if (!connectionString) {
@@ -23,7 +28,10 @@ function createPool(): Pool {
     connectionString,
     max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    // Increase to 15s to allow Neon serverless compute cold-start without timing out
+    connectionTimeoutMillis: 15000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   };
 
   if (!isLocal && connectionString) {
