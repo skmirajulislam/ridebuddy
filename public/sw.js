@@ -1,14 +1,12 @@
 // RideBuddy Service Worker
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const STATIC_CACHE = `ridebuddy-static-${CACHE_VERSION}`;
 const TILE_CACHE = `ridebuddy-tiles-${CACHE_VERSION}`;
 const API_CACHE = `ridebuddy-api-${CACHE_VERSION}`;
 
-const STATIC_ASSETS = ["/", "/manifest.json", "/icons/icon.svg"];
+const STATIC_ASSETS = ["/manifest.json", "/icons/icon.svg"];
 
-const TILE_ORIGINS = ["https://api.maptiler.com"];
-
-const API_ORIGINS = ["http://localhost:5000"];
+const TILE_ORIGINS = ["https://api.maptiler.com", "https://tile.openstreetmap.org"];
 
 // ── Install ────────────────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
@@ -46,20 +44,41 @@ self.addEventListener("fetch", (event) => {
   // Skip non-GET requests
   if (request.method !== "GET") return;
 
-  // Map tile requests → cache-first (tiles rarely change)
+  // Skip Next.js HMR, Turbopack, and dev sockets
+  if (
+    url.pathname.includes("/_next/webpack-hmr") ||
+    url.pathname.includes("__turbopack__") ||
+    url.pathname.includes("hot-update")
+  ) {
+    return;
+  }
+
+  // HTML page navigations → Network-first (so live updates are never blocked by stale cache)
+  if (request.mode === "navigate" || request.destination === "document") {
+    event.respondWith(networkFirst(request, STATIC_CACHE));
+    return;
+  }
+
+  // Map tile requests → Cache-first
   if (TILE_ORIGINS.some((origin) => url.origin === origin)) {
     event.respondWith(cacheFirst(request, TILE_CACHE));
     return;
   }
 
-  // API requests → network-first with cache fallback
-  if (API_ORIGINS.some((origin) => url.origin === origin)) {
+  // API endpoints (/api/...) → Network-first with cache fallback
+  if (url.pathname.startsWith("/api/")) {
     event.respondWith(networkFirst(request, API_CACHE));
     return;
   }
 
-  // Static assets → cache-first
-  if (url.origin === self.location.origin) {
+  // Static assets (images, icons, fonts) → Cache-first
+  if (
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/images/") ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".svg") ||
+    url.pathname.endsWith(".ico")
+  ) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
   }
