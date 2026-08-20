@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { uploadFiles } from "@/lib/uploadthing";
 import { toast } from "sonner";
 import {
   Camera,
@@ -199,6 +198,15 @@ export default function ProfileModal({
     setAvatarPreview(URL.createObjectURL(file));
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSaveProfile = async () => {
     if (!name.trim()) {
       toast.error("Name cannot be empty");
@@ -217,16 +225,31 @@ export default function ProfileModal({
 
       // Upload new avatar if selected
       if (avatarFile) {
-        try {
-          const uploadRes = await uploadFiles("profileAvatarUploader", {
-            files: [avatarFile],
-          });
-          if (uploadRes && uploadRes.length > 0) {
-            finalAvatarUrl = uploadRes[0].url || uploadRes[0].appUrl || null;
-          }
-        } catch (uploadErr) {
-          console.warn("Avatar upload warning:", uploadErr);
+        toast.loading("Uploading avatar to cloud storage...", { id: "profile-save" });
+        const imageBase64 = await fileToBase64(avatarFile);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            imageBase64,
+            fileName: avatarFile.name || "avatar.jpg",
+            mimeType: avatarFile.type || "image/jpeg",
+          }),
+        });
+
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to upload photo to cloud storage");
         }
+
+        const upJson = await uploadRes.json();
+        if (!upJson.url) {
+          throw new Error("No photo URL returned from cloud storage");
+        }
+        finalAvatarUrl = upJson.url;
       }
 
       const res = await fetch("/api/user/profile", {

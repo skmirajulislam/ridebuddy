@@ -167,6 +167,11 @@ export default function Map() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Contributor modal state
   const [contributorModal, setContributorModal] = useState<{
@@ -1844,7 +1849,7 @@ export default function Map() {
       )}
 
       {/* ── Profile / Dashboard Trigger (top-right) ──────────────────── */}
-      {user ? (
+      {mounted && user ? (
         <div style={{ position: "absolute", top: "16px", right: "60px", zIndex: 10, display: "flex", alignItems: "center", gap: "8px" }}>
           <button
             id="map-profile-btn"
@@ -1899,7 +1904,7 @@ export default function Map() {
             </div>
           </button>
         </div>
-      ) : (
+      ) : mounted && !user ? (
         <button
           onClick={() => setAuthModalOpen(true)}
           className="map-dashboard-btn"
@@ -1923,7 +1928,7 @@ export default function Map() {
         >
           <span>Sign In</span>
         </button>
-      )}
+      ) : null}
 
       {/* ── Profile Modal (View & Edit Profile / Hobbies) ────────────────── */}
       <ProfileModal

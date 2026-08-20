@@ -4,7 +4,6 @@
 // Enhanced 4-step reporting flow with GPS proximity validation and Gemini AI image verification.
 
 import React, { useState, useRef } from "react";
-import { uploadFiles } from "@/lib/uploadthing";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -254,11 +253,21 @@ export default function BottomSheet({
       // Step 2: Upload to UploadThing storage
       let uploadedImageUrl: string | null = null;
       try {
-        const uploadRes = await uploadFiles("hazardImageUploader", {
-          files: [imageFile],
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
+          body: JSON.stringify({
+            imageBase64,
+            fileName: imageFile.name || `hazard_${Date.now()}.jpg`,
+            mimeType: imageMimeType,
+          }),
         });
-        if (uploadRes && uploadRes.length > 0) {
-          uploadedImageUrl = uploadRes[0].url || uploadRes[0].appUrl || null;
+        if (uploadRes.ok) {
+          const upJson = await uploadRes.json();
+          uploadedImageUrl = upJson.url;
         }
       } catch (uploadErr) {
         console.warn("[BottomSheet] UploadThing upload warning:", uploadErr);
