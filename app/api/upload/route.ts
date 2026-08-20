@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     const uploadedData = uploadRes[0].data;
-    const fileUrl = uploadedData.ufsUrl || uploadedData.url || uploadedData.appUrl;
+    const fileUrl = uploadedData.ufsUrl || uploadedData.url;
 
     return NextResponse.json({
       success: true,

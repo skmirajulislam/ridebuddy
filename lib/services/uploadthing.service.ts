@@ -7,9 +7,45 @@ let utapiInstance: UTApi | null = null;
 
 function getUTApi(): UTApi {
   if (!utapiInstance) {
-    utapiInstance = new UTApi();
+    const token = process.env.UPLOADTHING_TOKEN?.replace(/^['"]|['"]$/g, "");
+    utapiInstance = new UTApi(token ? { token } : undefined);
   }
   return utapiInstance;
+}
+
+/**
+ * Uploads a base64 image directly to UploadThing cloud storage.
+ * Should ONLY be called after all AI verifications and checks have passed.
+ */
+export async function uploadBase64ToUploadThing(
+  imageBase64: string,
+  mimeType = "image/jpeg",
+  fileName?: string
+): Promise<string | null> {
+  if (!imageBase64) return null;
+
+  try {
+    const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, "");
+    const buffer = Buffer.from(cleanBase64, "base64");
+    const name = fileName || `hazard_${Date.now()}.jpg`;
+    const uploadableFile = new File([buffer], name, { type: mimeType });
+
+    const utapi = getUTApi();
+    const uploadRes = await utapi.uploadFiles([uploadableFile]);
+
+    if (!uploadRes || uploadRes.length === 0 || uploadRes[0].error) {
+      console.error("[UploadThing] Server upload error:", uploadRes?.[0]?.error);
+      return null;
+    }
+
+    const uploadedData = uploadRes[0].data;
+    const fileUrl = uploadedData.ufsUrl || uploadedData.url || null;
+    console.log(`[UploadThing] Hazard photo uploaded successfully to cloud: ${fileUrl}`);
+    return fileUrl;
+  } catch (err: unknown) {
+    console.error("[UploadThing] Failed to upload base64 file to cloud:", (err as Error).message);
+    return null;
+  }
 }
 
 /**

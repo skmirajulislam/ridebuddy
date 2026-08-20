@@ -250,30 +250,8 @@ export default function BottomSheet({
       const imageBase64 = await fileToBase64(imageFile);
       const imageMimeType = imageFile.type || "image/jpeg";
 
-      // Step 2: Upload to UploadThing storage
-      let uploadedImageUrl: string | null = null;
-      try {
-        const uploadRes = await fetch("/api/upload", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-          },
-          body: JSON.stringify({
-            imageBase64,
-            fileName: imageFile.name || `hazard_${Date.now()}.jpg`,
-            mimeType: imageMimeType,
-          }),
-        });
-        if (uploadRes.ok) {
-          const upJson = await uploadRes.json();
-          uploadedImageUrl = upJson.url;
-        }
-      } catch (uploadErr) {
-        console.warn("[BottomSheet] UploadThing upload warning:", uploadErr);
-      }
-
-      // Step 3: submit to backend (Gemini validation happens server-side)
+      // Step 2: submit to backend (Gemini validation happens server-side FIRST.
+      // Cloud storage upload ONLY happens on backend after Gemini confirms valid hazard!)
       setSubmitStatus("submitting");
       const endpoint = apiUrl ? `${apiUrl}/api/hazards` : "/api/hazards";
 
@@ -291,8 +269,7 @@ export default function BottomSheet({
         severity,
         imageBase64,
         imageMimeType,
-        imageUrl: uploadedImageUrl,
-        image_url: uploadedImageUrl,
+        fileName: imageFile.name || `hazard_${Date.now()}.jpg`,
       };
       toast.loading("Verifying hazard with Gemini Vision AI...", { id: "hazard-submit" });
 

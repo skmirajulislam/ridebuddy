@@ -6,6 +6,7 @@ import {
   createHazard,
 } from "@/lib/services/hazard.service";
 import { validateImage } from "@/lib/services/gemini.service";
+import { uploadBase64ToUploadThing } from "@/lib/services/uploadthing.service";
 
 const GEMINI_MIN_CONFIDENCE = 0.5;
 const DUPLICATE_RADIUS_METERS = 30;
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { type, lat, lng, severity, imageBase64, imageMimeType, image_url, imageUrl } = body;
+    const { type, lat, lng, severity, imageBase64, imageMimeType, image_url, imageUrl, fileName } = body;
 
     // 1. Basic validation
     if (!type || lat == null || lng == null) {
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const finalImageUrl = image_url || imageUrl || null;
+    let finalImageUrl = image_url || imageUrl || null;
 
     if (!imageBase64 && !finalImageUrl) {
       return NextResponse.json(
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Gemini Vision AI validation (if base64 provided)
+    // 3. Gemini Vision AI validation (analyzed in-memory BEFORE cloud upload)
     let validation: {
       is_hazard: boolean;
       hazard_type: string | null;
@@ -133,9 +134,26 @@ export async function POST(req: NextRequest) {
           { status: 422 }
         );
       }
+
+      // 4. FINAL CONFIRMATION RECEIVED FROM GEMINI:
+      // Now that Gemini has verified the hazard image, upload it to cloud storage.
+      if (!finalImageUrl) {
+        try {
+          const uploadedUrl = await uploadBase64ToUploadThing(
+            imageBase64,
+            imageMimeType || "image/jpeg",
+            fileName
+          );
+          if (uploadedUrl) {
+            finalImageUrl = uploadedUrl;
+          }
+        } catch (uploadErr) {
+          console.warn("[Hazards] Cloud upload warning after Gemini confirmation:", uploadErr);
+        }
+      }
     }
 
-    // 4. Create hazard in database
+    // 5. Create hazard in database
     const hazard = await createHazard({
       type,
       lat: parsedLat,

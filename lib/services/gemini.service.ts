@@ -29,6 +29,14 @@ Rules:
 Output format (strict JSON, no extra text):
 {"is_hazard": true, "hazard_type": "string or null", "confidence": 0.0 to 1.0}`;
 
+// Supported Gemini models with fallbacks
+const CANDIDATE_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+];
+
 export interface ValidationResult {
   is_hazard: boolean;
   hazard_type: string | null;
@@ -38,7 +46,7 @@ export interface ValidationResult {
 
 /**
  * Validates a base64-encoded image using Gemini Vision AI.
- * Images are never persisted to disk — analyzed in-memory only.
+ * Images are analyzed in-memory only before any cloud persistence.
  */
 export async function validateImage(
   base64Image: string,
@@ -49,35 +57,53 @@ export async function validateImage(
     return { is_hazard: true, hazard_type: null, confidence: 1.0, skipped: true };
   }
 
-  // Use gemini-1.5-flash or gemini-flash-latest
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const cleanBase64 = base64Image.replace(/^data:[^;]+;base64,/, "");
 
   const imagePart = {
     inlineData: {
-      data: base64Image,
+      data: cleanBase64,
       mimeType,
     },
   };
 
-  let responseText: string;
-  try {
-    const result = await model.generateContent([VALIDATION_PROMPT, imagePart]);
-    responseText = result.response.text().trim();
-  } catch (err: unknown) {
-    const msg = (err as Error).message || "";
-    if (msg.includes("429") || msg.includes("quota") || msg.includes("Too Many") || msg.includes("RESOURCE_EXHAUSTED")) {
-      console.warn("[Gemini] Rate limit hit — gracefully skipping AI verification for this report");
-      return { is_hazard: true, hazard_type: null, confidence: 1.0, skipped: true };
+  let responseText: string | null = null;
+  let lastErrorMsg = "";
+
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent([VALIDATION_PROMPT, imagePart]);
+      responseText = result.response.text().trim();
+      if (responseText) {
+        break;
+      }
+    } catch (err: unknown) {
+      const msg = (err as Error).message || "";
+      lastErrorMsg = msg;
+      if (
+        msg.includes("429") ||
+        msg.includes("quota") ||
+        msg.includes("Too Many") ||
+        msg.includes("RESOURCE_EXHAUSTED")
+      ) {
+        console.warn("[Gemini] Rate limit hit — gracefully skipping AI verification for this report");
+        return { is_hazard: true, hazard_type: null, confidence: 1.0, skipped: true };
+      }
+      console.warn(`[Gemini] Model ${modelName} call failed (${msg}). Trying next candidate model...`);
     }
-    console.error("[Gemini] AI validation failed:", msg);
+  }
+
+  if (!responseText) {
+    console.error("[Gemini] AI validation failed across all candidate models:", lastErrorMsg);
     throw new Error("Image validation service is currently unavailable. Please try again.");
   }
 
-  // Clean markdown backticks if present
-  const cleaned = responseText
-    .replace(/^```[a-z]*\n?/i, "")
-    .replace(/```$/i, "")
-    .trim();
+  // Clean markdown backticks/json wrappers if present
+  let cleaned = responseText.trim();
+  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (codeBlockMatch) {
+    cleaned = codeBlockMatch[1].trim();
+  }
 
   let parsed: { is_hazard?: boolean; hazard_type?: string | null; confidence?: number };
   try {
