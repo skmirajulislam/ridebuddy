@@ -1,4 +1,5 @@
 import pool from "../db";
+import { deleteUploadThingFile } from "./uploadthing.service";
 
 export interface HazardRecord {
   id: number;
@@ -247,6 +248,84 @@ export async function checkHazardExists(lat: number, lng: number, radiusMeters =
 }
 
 /**
+ * Get all hazards submitted by a specific user (contributions)
+ */
+export async function getUserHazards(userId: number): Promise<HazardRecord[]> {
+  const result = await pool.query<HazardRecord>(
+    `SELECT h.*,
+            u.name AS reporter_name,
+            u.handle AS reporter_handle,
+            u.avatar_url AS reporter_avatar,
+            u.bio AS reporter_bio,
+            COALESCE(u.hobbies, '{}') AS reporter_hobbies
+     FROM hazards h
+     LEFT JOIN users u ON h.user_id = u.id
+     WHERE h.user_id = $1
+     ORDER BY h.created_at DESC`,
+    [userId]
+  );
+  return result.rows;
+}
+
+/**
+ * Delete a hazard report and remove its image from UploadThing storage
+ */
+export async function deleteHazard(
+  hazardId: number,
+  userId: number,
+  isOfficial = false
+): Promise<{ success: boolean; error?: string }> {
+  // 1. Fetch hazard to verify ownership and retrieve image_url
+  const hazardRes = await pool.query<HazardRecord>(
+    `SELECT * FROM hazards WHERE id = $1`,
+    [hazardId]
+  );
+
+  if (hazardRes.rowCount === 0) {
+    return { success: false, error: "Hazard not found" };
+  }
+
+  const hazard = hazardRes.rows[0];
+
+  // 2. Enforce permission: only owner or official/admin can delete
+  if (!isOfficial && hazard.user_id !== userId) {
+    return { success: false, error: "You can only delete your own reported hazards" };
+  }
+
+  // 3. Delete associated image from UploadThing storage if present
+  if (hazard.image_url) {
+    console.log(`[Hazard] Deleting hazard #${hazardId} image from UploadThing:`, hazard.image_url);
+    await deleteUploadThingFile(hazard.image_url);
+  }
+
+  // 4. Delete record from database and decrement user report count in a transaction
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    await client.query(`DELETE FROM hazards WHERE id = $1`, [hazardId]);
+
+    if (hazard.user_id) {
+      await client.query(
+        `UPDATE users
+         SET hazard_reports_count = GREATEST(0, COALESCE(hazard_reports_count, 1) - 1)
+         WHERE id = $1`,
+        [hazard.user_id]
+      );
+    }
+
+    await client.query("COMMIT");
+    return { success: true };
+  } catch (err: unknown) {
+    await client.query("ROLLBACK");
+    console.error("[Hazard] Deletion error:", (err as Error).message);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Update hazard status (GovOps lifecycle: active -> in_progress -> resolved)
  */
 export async function updateHazardStatus(
@@ -255,6 +334,19 @@ export async function updateHazardStatus(
   userId: number
 ): Promise<HazardRecord | null> {
   const isResolving = status === "resolved";
+
+  // If resolving, check if there's an image on UploadThing to clean up as requested
+  if (isResolving) {
+    const existing = await pool.query<HazardRecord>(
+      `SELECT image_url FROM hazards WHERE id = $1`,
+      [id]
+    );
+    const imageUrl = existing.rows[0]?.image_url;
+    if (imageUrl) {
+      console.log(`[Hazard] Hazard #${id} marked resolved. Removing resolved image from UploadThing...`);
+      await deleteUploadThingFile(imageUrl);
+    }
+  }
 
   const result = await pool.query<HazardRecord>(
     `UPDATE hazards

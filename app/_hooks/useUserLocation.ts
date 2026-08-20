@@ -6,6 +6,8 @@ export interface UserPosition {
   lat: number;
   lng: number;
   accuracy: number;
+  speed?: number | null;
+  heading?: number | null;
 }
 
 export function useUserLocation() {
@@ -30,6 +32,8 @@ export function useUserLocation() {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
+        speed: pos.coords.speed,
+        heading: pos.coords.heading,
       });
       setError(null);
       setIsTracking(true);

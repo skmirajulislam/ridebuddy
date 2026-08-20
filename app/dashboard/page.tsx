@@ -33,6 +33,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [modalTab, setModalTab] = useState<"profile" | "contributions">("profile");
   const [copied, setCopied] = useState(false);
 
   const fetchProfile = async () => {
@@ -284,12 +285,23 @@ function DashboardContent() {
         {profile && (
           <>
             <div className="dashboard-stats">
-              <div className="dashboard-stat-card dashboard-stat-card--accent">
+              <div
+                className="dashboard-stat-card dashboard-stat-card--accent"
+                onClick={() => {
+                  setModalTab("contributions");
+                  setProfileModalOpen(true);
+                }}
+                style={{ cursor: "pointer" }}
+                title="Click to view all your reported hazards"
+              >
                 <div className="dashboard-stat-card__icon flex items-center justify-center text-sky-400">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div className="dashboard-stat-card__value">{totalReports}</div>
-                <div className="dashboard-stat-card__label">Hazards Reported</div>
+                <div className="dashboard-stat-card__label flex items-center gap-1">
+                  <span>Hazards Reported</span>
+                  <span style={{ fontSize: "10px", color: "#38bdf8" }}>(View)</span>
+                </div>
               </div>
 
               <div className="dashboard-stat-card">
@@ -343,6 +355,7 @@ function DashboardContent() {
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
         onProfileUpdated={fetchProfile}
+        initialTab={modalTab}
       />
     </main>
   );

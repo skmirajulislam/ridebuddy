@@ -109,7 +109,6 @@ interface NavigationState {
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const PROXIMITY_WARNING_RADIUS = 300; // meters
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function haversineDistance(
@@ -625,20 +624,33 @@ export default function Map() {
       }
     }
 
-    // ── Proximity check ────────────────────────────────────────────────────
+    // ── Speed-Adaptive Proximity check (Free Drive & Radar Mode) ───────────
+    const currentSpeedKmh = position.speed ? position.speed * 3.6 : 0;
+    const isHighSpeed = currentSpeedKmh > 35;
+    const alertRadius = isHighSpeed ? 150 : 80;
+
     const nearbyHazard = hazards.find(
       (h) =>
         !notifiedHazardIds.current.has(h.id) &&
-        haversineDistance(lat, lng, h.lat, h.lng) < PROXIMITY_WARNING_RADIUS
+        haversineDistance(lat, lng, h.lat, h.lng) < alertRadius
     );
 
     if (nearbyHazard) {
       notifiedHazardIds.current.add(nearbyHazard.id);
-      const msg = `${
-        nearbyHazard.type.charAt(0).toUpperCase() + nearbyHazard.type.slice(1)
-      } reported within 300m ahead!`;
-      setWarning(msg);
-      sendNotification("RideBuddy — Hazard Nearby", msg);
+      const hazardDistance = Math.round(haversineDistance(lat, lng, nearbyHazard.lat, nearbyHazard.lng));
+      const formattedType = nearbyHazard.type.charAt(0).toUpperCase() + nearbyHazard.type.slice(1);
+
+      let alertMsg: string;
+      if (hazardDistance <= 25) {
+        alertMsg = `Caution: ${formattedType} in ${hazardDistance} meters! Reduce speed now.`;
+      } else if (isHighSpeed) {
+        alertMsg = `High speed detected (${Math.round(currentSpeedKmh)} km/h)! Slow down, ${formattedType} ${hazardDistance}m ahead.`;
+      } else {
+        alertMsg = `${formattedType} reported ${hazardDistance}m ahead. Drive carefully.`;
+      }
+
+      setWarning(alertMsg);
+      sendNotification("Hazard Alert", alertMsg);
     }
   }, [position, isMapLoaded, hazards, sendNotification, navigation.isActive]);
 
@@ -1193,11 +1205,17 @@ export default function Map() {
         }));
       }
 
+      // Speed-adaptive hazard proximity check in navigation
+      const navSpeedKmh = position?.speed ? position.speed * 3.6 : 0;
+      const isHighNavSpeed = navSpeedKmh > 35;
+      const effectiveNavRadius = isHighNavSpeed ? 150 : 80;
+
       const nearbyNavHazard = navigation.hazardsOnRoute.find((hazard) => {
         const hazardId = String(hazard.id ?? `${hazard.type}-${hazard.lat}-${hazard.lng}`);
+        const dist = haversineDistance(lat, lng, hazard.lat, hazard.lng);
         return (
           !navigation.announcedHazards.has(hazardId) &&
-          haversineDistance(lat, lng, hazard.lat, hazard.lng) < PROXIMITY_WARNING_RADIUS
+          dist < effectiveNavRadius
         );
       });
 
@@ -1206,11 +1224,17 @@ export default function Map() {
           nearbyNavHazard.id ??
             `${nearbyNavHazard.type}-${nearbyNavHazard.lat}-${nearbyNavHazard.lng}`
         );
-        const hazardDistance = haversineDistance(lat, lng, nearbyNavHazard.lat, nearbyNavHazard.lng);
-        const hazardMessage = `${
-          String(nearbyNavHazard.type ?? "hazard").charAt(0).toUpperCase() +
-          String(nearbyNavHazard.type ?? "hazard").slice(1)
-        } reported ahead in ${Math.round(hazardDistance)} meters`;
+        const hazardDistance = Math.round(haversineDistance(lat, lng, nearbyNavHazard.lat, nearbyNavHazard.lng));
+        const formattedType = String(nearbyNavHazard.type ?? "hazard").charAt(0).toUpperCase() + String(nearbyNavHazard.type ?? "hazard").slice(1);
+
+        let hazardMessage: string;
+        if (hazardDistance <= 25) {
+          hazardMessage = `Caution: ${formattedType} in ${hazardDistance} meters! Reduce speed now.`;
+        } else if (isHighNavSpeed) {
+          hazardMessage = `High speed detected (${Math.round(navSpeedKmh)} km/h)! Slow down, ${formattedType} reported in ${hazardDistance} meters.`;
+        } else {
+          hazardMessage = `${formattedType} reported ahead in ${hazardDistance} meters.`;
+        }
 
         sendNotification("Hazard Ahead", hazardMessage);
         setWarning(hazardMessage);
@@ -1242,7 +1266,7 @@ export default function Map() {
         }
       }
     }
-  }, [navigation, sendNotification]);
+  }, [navigation, sendNotification, position?.speed]);
 
   // Check if user deviated from route
   const checkDeviation = useCallback((lng: number, lat: number) => {
@@ -1946,6 +1970,7 @@ export default function Map() {
         apiUrl={API_URL}
         onSuccess={handleReportSuccess}
         idToken={idToken}
+        onRequireAuth={() => setAuthModalOpen(true)}
       />
     </div>
   );

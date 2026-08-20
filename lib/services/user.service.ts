@@ -1,5 +1,6 @@
 import pool from "../db";
 import { generateUniqueHandle } from "../utils/handle";
+import { deleteUploadThingFile } from "./uploadthing.service";
 
 export interface UserDashboardData {
   user_id: number;
@@ -215,6 +216,16 @@ export async function updateUserProfile(
   const newAvatar = updates.avatar_url !== undefined ? updates.avatar_url : current.avatar_url;
   const newBio = updates.bio !== undefined ? updates.bio : current.bio;
   const newHobbies = updates.hobbies !== undefined ? updates.hobbies : current.hobbies;
+
+  // If avatar is being replaced or removed, safely delete the previous image from UploadThing storage
+  if (
+    updates.avatar_url !== undefined &&
+    updates.avatar_url !== current.avatar_url &&
+    current.avatar_url
+  ) {
+    console.log(`[User] Replacing avatar for user ${userId}. Deleting old avatar from UploadThing...`);
+    await deleteUploadThingFile(current.avatar_url);
+  }
 
   await pool.query(
     `UPDATE users
