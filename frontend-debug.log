@@ -1,0 +1,14 @@
+
+> demo@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.31.167.177:3000
+- Environments: .env
+✓ Ready in 311ms
+Creating turbopack project {
+  dir: '/Users/skmirajulislam/Coding/Ride-Buddy/frontend',
+  testMode: true
+}
+

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <!-- Background -->
+  <rect width="192" height="192" rx="40" fill="#0a0a0a"/>
+  <!-- Road -->
+  <rect x="76" y="30" width="40" height="132" rx="8" fill="#1e1e2e"/>
+  <!-- Center dashes -->
+  <rect x="92" y="48" width="8" height="20" rx="4" fill="#7c3aed"/>
+  <rect x="92" y="86" width="8" height="20" rx="4" fill="#7c3aed"/>
+  <rect x="92" y="124" width="8" height="20" rx="4" fill="#7c3aed"/>
+  <!-- Hazard triangle -->
+  <polygon points="96,54 76,90 116,90" fill="none" stroke="#ef4444" stroke-width="6" stroke-linejoin="round"/>
+  <text x="96" y="84" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="bold" fill="#ef4444">!</text>
+  <!-- Location pin -->
+  <circle cx="96" cy="138" r="10" fill="#7c3aed"/>
+  <path d="M96 150 Q88 142 88 133 a8 8 0 0 1 16 0 Q104 142 96 150z" fill="#7c3aed"/>
+</svg>
