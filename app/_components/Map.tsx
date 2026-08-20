@@ -425,8 +425,8 @@ export default function Map() {
       }),
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), "top-right");
-    map.current.addControl(new maplibregl.FullscreenControl(), "top-right");
+    map.current.addControl(new maplibregl.NavigationControl(), "bottom-right");
+    map.current.addControl(new maplibregl.FullscreenControl(), "bottom-right");
 
     // Disable default double-click zoom so double-clicking places/moves destination pointer
     map.current.doubleClickZoom.disable();
@@ -1737,255 +1737,554 @@ export default function Map() {
       {/* ── Warning Banner ─────────────────────────────────────────────── */}
       <WarningBanner message={warning} onDismiss={() => setWarning(null)} />
 
-      {/* ── Search Panel (Collapsible Dropdown / Popup) ──────────────────── */}
-      <div
-        className="search-panel"
-        style={{
-          ...(warning ? { top: 60 } : {}),
-          transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
-        {/* Top return, title & dropdown collapse button */}
+      {/* ── Top Header Navigation Bar (Unified Resilient Layout) ──────────── */}
+      <header className="map-top-header">
+        {/* Left: Search & Routing Panel */}
         <div
+          className="search-panel"
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingBottom: isSearchOpen ? "6px" : "0",
-            borderBottom: isSearchOpen ? "1px solid rgba(255, 255, 255, 0.08)" : "none",
+            ...(warning ? { marginTop: "40px" } : {}),
+            transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Link
-              href="/welcome"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "#00ccff",
-                textDecoration: "none",
-                background: "rgba(0, 204, 255, 0.12)",
-                border: "1px solid rgba(0, 204, 255, 0.3)",
-                padding: "4px 10px",
-                borderRadius: "999px",
-                transition: "all 0.15s ease",
-              }}
-              title="Return to Main Website"
-            >
-              <ArrowLeft className="w-3 h-3" />
-              <span>Main</span>
-            </Link>
-
-            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
-              <Shield className="w-3.5 h-3.5 text-sky-400" />
-              <span>Routing</span>
-            </span>
-          </div>
-
-          <button
-            onClick={() => setIsSearchOpen(!isSearchOpen)}
+          {/* Top return, title & dropdown collapse button */}
+          <div
             style={{
-              background: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-              color: "#ffffff",
-              cursor: "pointer",
-              borderRadius: "999px",
-              padding: "4px 10px",
-              fontSize: "11px",
-              fontWeight: 700,
               display: "flex",
               alignItems: "center",
-              gap: "4px",
-              transition: "all 0.15s ease",
+              justifyContent: "space-between",
+              paddingBottom: isSearchOpen ? "6px" : "0",
+              borderBottom: isSearchOpen ? "1px solid rgba(255, 255, 255, 0.08)" : "none",
             }}
-            title={isSearchOpen ? "Collapse search panel" : "Expand search panel"}
           >
-            {isSearchOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            <span style={{ fontSize: "10px" }}>{isSearchOpen ? "Hide" : "Route"}</span>
-          </button>
-        </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Link
+                href="/welcome"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  color: "#00ccff",
+                  textDecoration: "none",
+                  background: "rgba(0, 204, 255, 0.12)",
+                  border: "1px solid rgba(0, 204, 255, 0.3)",
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  transition: "all 0.15s ease",
+                }}
+                title="Return to Main Website"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                <span>Main</span>
+              </Link>
 
-        {/* Expandable fields */}
-        {isSearchOpen && (
-          <>
-            {/* FROM input */}
-            <div className="search-panel__field">
-              <div className="search-panel__input-row flex items-center">
-                <span className="search-panel__dot search-panel__dot--start" />
-                <input
-                  id="search-from"
-                  type="text"
-                  placeholder="From: start location..."
-                  value={fromQuery}
-                  onChange={(e) => handleFromSearch(e.target.value)}
-                  className="search-panel__input"
-                  autoComplete="off"
-                />
-                {fromQuery && (
-                  <button
-                    onClick={clearFrom}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "rgba(255, 255, 255, 0.4)",
-                      cursor: "pointer",
-                      padding: "0 4px",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                    title="Clear start location"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                  {position && (
+              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                <Shield className="w-3.5 h-3.5 text-sky-400" />
+                <span>Routing</span>
+              </span>
+            </div>
+
+            <button
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                color: "#ffffff",
+                cursor: "pointer",
+                borderRadius: "999px",
+                padding: "4px 10px",
+                fontSize: "11px",
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                transition: "all 0.15s ease",
+              }}
+              title={isSearchOpen ? "Collapse search panel" : "Expand search panel"}
+            >
+              {isSearchOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              <span style={{ fontSize: "10px" }}>{isSearchOpen ? "Hide" : "Route"}</span>
+            </button>
+          </div>
+
+          {/* Expandable fields */}
+          {isSearchOpen && (
+            <>
+              {/* FROM input */}
+              <div className="search-panel__field">
+                <div className="search-panel__input-row flex items-center">
+                  <span className="search-panel__dot search-panel__dot--start" />
+                  <input
+                    id="search-from"
+                    type="text"
+                    placeholder="From: start location..."
+                    value={fromQuery}
+                    onChange={(e) => handleFromSearch(e.target.value)}
+                    className="search-panel__input"
+                    autoComplete="off"
+                  />
+                  {fromQuery && (
                     <button
-                      className="search-panel__loc-btn flex items-center justify-center"
-                      onClick={useMyLocation}
-                      title="Use my current GPS location"
-                      aria-label="Use my location as start"
+                      onClick={clearFrom}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "rgba(255, 255, 255, 0.4)",
+                        cursor: "pointer",
+                        padding: "0 4px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      title="Clear start location"
                     >
-                      <Locate className="w-3.5 h-3.5 text-sky-400" />
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    {position && (
+                      <button
+                        className="search-panel__loc-btn flex items-center justify-center"
+                        onClick={useMyLocation}
+                        title="Use my current GPS location"
+                        aria-label="Use my location as start"
+                      >
+                        <Locate className="w-3.5 h-3.5 text-sky-400" />
+                      </button>
+                    )}
+                    <button
+                      className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'from' ? 'active' : ''}`}
+                      onClick={() => {
+                        if (!user) {
+                          toast.info("Please sign in or register to pick waypoints on the map");
+                          setAuthModalOpen(true);
+                          return;
+                        }
+                        setMapPickTarget(mapPickTarget === 'from' ? null : 'from');
+                      }}
+                      title={mapPickTarget === 'from' ? "Click map to set Start point" : "Pick Start point on map"}
+                      aria-label="Pick start on map"
+                      style={mapPickTarget === 'from' ? { background: "rgba(168, 85, 247, 0.3)", borderColor: "#a855f7" } : {}}
+                    >
+                      <Crosshair className="w-3.5 h-3.5 text-purple-400" />
+                    </button>
+                  </div>
+                </div>
+                {fromResults.length > 0 && (
+                  <div className="search-panel__results">
+                    {fromResults.map((place, i) => (
+                      <div
+                        key={i}
+                        className="search-panel__result-item"
+                        onClick={() => selectFrom(place.center, place.place_name)}
+                      >
+                        {place.place_name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* TO input */}
+              <div className="search-panel__field">
+                <div className="search-panel__input-row flex items-center">
+                  <span className="search-panel__dot search-panel__dot--end" />
+                  <input
+                    id="search-to"
+                    type="text"
+                    placeholder="To: destination..."
+                    value={toQuery}
+                    onChange={(e) => handleToSearch(e.target.value)}
+                    className="search-panel__input"
+                    autoComplete="off"
+                  />
+                  {toQuery && (
+                    <button
+                      onClick={clearTo}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "rgba(255, 255, 255, 0.4)",
+                        cursor: "pointer",
+                        padding: "0 4px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      title="Clear destination"
+                    >
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                   <button
-                    className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'from' ? 'active' : ''}`}
+                    className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'to' ? 'active' : ''}`}
                     onClick={() => {
                       if (!user) {
-                        toast.info("Please sign in or register to pick waypoints on the map");
+                        toast.info("Please sign in or register to pick destination on the map");
                         setAuthModalOpen(true);
                         return;
                       }
-                      setMapPickTarget(mapPickTarget === 'from' ? null : 'from');
+                      setMapPickTarget(mapPickTarget === 'to' ? null : 'to');
                     }}
-                    title={mapPickTarget === 'from' ? "Click map to set Start point" : "Pick Start point on map"}
-                    aria-label="Pick start on map"
-                    style={mapPickTarget === 'from' ? { background: "rgba(168, 85, 247, 0.3)", borderColor: "#a855f7" } : {}}
+                    title={mapPickTarget === 'to' ? "Click map to set Destination" : "Pick Destination on map"}
+                    aria-label="Pick destination on map"
+                    style={mapPickTarget === 'to' ? { background: "rgba(255, 77, 109, 0.3)", borderColor: "#ff4d6d" } : {}}
                   >
-                    <Crosshair className="w-3.5 h-3.5 text-purple-400" />
+                    <Crosshair className="w-3.5 h-3.5 text-rose-400" />
                   </button>
                 </div>
+                {toResults.length > 0 && (
+                  <div className="search-panel__results">
+                    {toResults.map((place, i) => (
+                      <div
+                        key={i}
+                        className="search-panel__result-item"
+                        onClick={() => selectTo(place.center, place.place_name)}
+                      >
+                        {place.place_name}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              {fromResults.length > 0 && (
-                <div className="search-panel__results">
-                  {fromResults.map((place, i) => (
-                    <div
-                      key={i}
-                      className="search-panel__result-item"
-                      onClick={() => selectFrom(place.center, place.place_name)}
-                    >
-                      {place.place_name}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* TO input */}
-            <div className="search-panel__field">
-              <div className="search-panel__input-row flex items-center">
-                <span className="search-panel__dot search-panel__dot--end" />
-                <input
-                  id="search-to"
-                  type="text"
-                  placeholder="To: destination..."
-                  value={toQuery}
-                  onChange={(e) => handleToSearch(e.target.value)}
-                  className="search-panel__input"
-                  autoComplete="off"
-                />
-                {toQuery && (
+              {/* Get Route & Clear buttons */}
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  id="get-route-btn"
+                  onClick={getRoute}
+                  disabled={!start || !end || isLoadingRoute}
+                  className="search-panel__route-btn flex items-center justify-center gap-2"
+                  style={{ flex: 1 }}
+                  aria-busy={isLoadingRoute}
+                >
+                  <Navigation className="w-4 h-4" />
+                  <span>{isLoadingRoute ? "Finding best route..." : "Get Safe Route"}</span>
+                </button>
+                {(start || end) && (
                   <button
-                    onClick={clearTo}
+                    onClick={clearAllRoute}
                     style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "rgba(255, 255, 255, 0.4)",
+                      background: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
+                      color: "#ffffff",
+                      borderRadius: "var(--radius-md)",
+                      padding: "0 14px",
+                      fontSize: "12px",
+                      fontWeight: 700,
                       cursor: "pointer",
-                      padding: "0 4px",
+                      transition: "all 0.15s ease",
                       display: "flex",
                       alignItems: "center",
+                      gap: "4px",
                     }}
-                    title="Clear destination"
+                    title="Reset all points and routes"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Clear</span>
                   </button>
                 )}
-                <button
-                  className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'to' ? 'active' : ''}`}
-                  onClick={() => {
-                    if (!user) {
-                      toast.info("Please sign in or register to pick destination on the map");
-                      setAuthModalOpen(true);
-                      return;
-                    }
-                    setMapPickTarget(mapPickTarget === 'to' ? null : 'to');
-                  }}
-                  title={mapPickTarget === 'to' ? "Click map to set Destination" : "Pick Destination on map"}
-                  aria-label="Pick destination on map"
-                  style={mapPickTarget === 'to' ? { background: "rgba(255, 77, 109, 0.3)", borderColor: "#ff4d6d" } : {}}
-                >
-                  <Crosshair className="w-3.5 h-3.5 text-rose-400" />
-                </button>
               </div>
-              {toResults.length > 0 && (
-                <div className="search-panel__results">
-                  {toResults.map((place, i) => (
-                    <div
-                      key={i}
-                      className="search-panel__result-item"
-                      onClick={() => selectTo(place.center, place.place_name)}
-                    >
-                      {place.place_name}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            </>
+          )}
+        </div>
 
-            {/* Get Route & Clear buttons */}
-            <div style={{ display: "flex", gap: "8px" }}>
+        {/* Right: Quick Action HUD Pills & Auth / Profile */}
+        {mounted && (
+          <div className="map-top-bar no-scrollbar">
+            {/* Voice Assistant HUD */}
+            <VoiceAssistantHUD
+              isListening={isListening}
+              isSpeaking={isSpeaking}
+              transcript={transcript}
+              voiceEnabled={voiceEnabled}
+              onToggleListening={() => {
+                if (!user) {
+                  toast.info("Please sign in or register to use Voice Assistant & Commands");
+                  setAuthModalOpen(true);
+                  return;
+                }
+                toggleListening();
+              }}
+              onToggleMute={() => {
+                if (!user) {
+                  toast.info("Please sign in or register to customize Voice Co-Pilot audio");
+                  setAuthModalOpen(true);
+                  return;
+                }
+                setVoiceEnabled(!voiceEnabled);
+              }}
+            />
+
+            <div style={{ width: "1px", height: "22px", background: "rgba(255, 255, 255, 0.15)", flexShrink: 0 }} />
+
+            {/* Squad Convoy Button */}
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.info("Please sign in or register to join or create a rider squad convoy");
+                  setAuthModalOpen(true);
+                  return;
+                }
+                setSquadModalOpen(true);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "999px",
+                border: activeSquad ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.1)",
+                background: activeSquad ? "rgba(56, 189, 248, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                color: activeSquad ? "#38bdf8" : "#94a3b8",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+              title="Rider Squads & Live Convoy Mode"
+            >
+              <Users className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">{activeSquad ? activeSquad.name : "Squad"}</span>
+              {activeSquad && (
+                <span style={{ fontSize: "10px", background: "#38bdf8", color: "#0f172a", padding: "1px 5px", borderRadius: "999px", fontWeight: 800 }}>
+                  {activeSquad.members?.length || 1}
+                </span>
+              )}
+            </button>
+
+            {/* Monsoon Weather Radar Toggle */}
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.info("Please sign in or register to access Live Monsoon Rain Radar");
+                  setAuthModalOpen(true);
+                  return;
+                }
+                setWeatherRadarEnabled(!weatherRadarEnabled);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "999px",
+                border: weatherRadarEnabled ? "1px solid #60a5fa" : "1px solid rgba(255, 255, 255, 0.1)",
+                background: weatherRadarEnabled ? "rgba(96, 165, 250, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                color: weatherRadarEnabled ? "#93c5fd" : "#94a3b8",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+              title="Toggle Live Rain & Monsoon Weather Radar"
+            >
+              <CloudRain className={`w-3.5 h-3.5 ${weatherRadarEnabled ? "text-blue-400 animate-bounce" : "text-slate-400"}`} />
+              <span className="hidden sm:inline">Rain Radar</span>
+            </button>
+
+            {/* City Leaderboard Button */}
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.info("Please sign in or register to view Rider Rankings & Leaderboard");
+                  setAuthModalOpen(true);
+                  return;
+                }
+                setLeaderboardModalOpen(true);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "999px",
+                border: "1px solid rgba(245, 158, 11, 0.3)",
+                background: "rgba(245, 158, 11, 0.1)",
+                color: "#fbbf24",
+                fontSize: "12px",
+                fontWeight: 700,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+              title="City Safety Leaderboard & Karma Champions"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Ranks</span>
+            </button>
+
+            {/* Offline Map Pack Button */}
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.info("Please sign in or register to download Offline Highway Map Packs");
+                  setAuthModalOpen(true);
+                  return;
+                }
+                setOfflineModalOpen(true);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 10px",
+                borderRadius: "999px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                background: "rgba(255, 255, 255, 0.05)",
+                color: "#94a3b8",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+              title="Download Offline Highway Pack"
+            >
+              <DownloadCloud className="w-3.5 h-3.5 text-slate-300" />
+            </button>
+
+            {/* Map Theme Toggle (Dark / Satellite / Neon Fog HUD) */}
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.info("Please sign in or register to customize map styles & HUD themes");
+                  setAuthModalOpen(true);
+                  return;
+                }
+                const nextTheme = mapTheme === "dark" ? "satellite" : mapTheme === "satellite" ? "neon_fog" : "dark";
+                handleThemeChange(nextTheme);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 10px",
+                borderRadius: "999px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                background: "rgba(255, 255, 255, 0.05)",
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+              title={`Current Style: ${mapTheme.toUpperCase()}. Click to switch style.`}
+            >
+              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden md:inline uppercase text-[10px] font-bold">{mapTheme}</span>
+            </button>
+
+            {/* 1-Tap Emergency SOS (Red Pulsing) */}
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.info("Please sign in or register to access Emergency SOS");
+                  setAuthModalOpen(true);
+                  return;
+                }
+                setSosModalOpen(true);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                borderRadius: "999px",
+                border: "1.5px solid #ef4444",
+                background: "linear-gradient(135deg, #dc2626, #991b1b)",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 900,
+                cursor: "pointer",
+                boxShadow: "0 0 14px rgba(239, 68, 68, 0.6)",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+              title="1-Tap Emergency SOS coordinates & siren alarm"
+            >
+              <AlertOctagon className="w-3.5 h-3.5 animate-pulse" />
+              <span>SOS</span>
+            </button>
+
+            {/* Profile Avatar / Sign In Pill */}
+            <div style={{ width: "1px", height: "22px", background: "rgba(255, 255, 255, 0.15)", flexShrink: 0 }} />
+            {user ? (
               <button
-                id="get-route-btn"
-                onClick={getRoute}
-                disabled={!start || !end || isLoadingRoute}
-                className="search-panel__route-btn flex items-center justify-center gap-2"
-                style={{ flex: 1 }}
-                aria-busy={isLoadingRoute}
+                id="map-profile-btn"
+                onClick={() => setProfileModalOpen(true)}
+                aria-label="User Profile"
+                title={`View Profile: ${user.name} (@${user.handle || "rider"})`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: "rgba(30, 41, 59, 0.8)",
+                  border: "1.5px solid rgba(56, 189, 248, 0.4)",
+                  borderRadius: "999px",
+                  padding: "3px 10px 3px 3px",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                }}
               >
-                <Navigation className="w-4 h-4" />
-                <span>{isLoadingRoute ? "Finding best route..." : "Get Safe Route"}</span>
-              </button>
-              {(start || end) && (
-                <button
-                  onClick={clearAllRoute}
+                <div
                   style={{
-                    background: "rgba(255, 255, 255, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
-                    color: "#ffffff",
-                    borderRadius: "var(--radius-md)",
-                    padding: "0 14px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
+                    width: "24px",
+                    height: "24px",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    background: "linear-gradient(135deg, #0284c7, #6366f1)",
                     display: "flex",
                     alignItems: "center",
-                    gap: "4px",
+                    justifyContent: "center",
+                    fontWeight: 700,
+                    fontSize: "11px",
+                    color: "#fff",
+                    flexShrink: 0,
                   }}
-                  title="Reset all points and routes"
                 >
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Clear</span>
-                </button>
-              )}
-            </div>
-          </>
+                  {user.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={user.avatar_url} alt={user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    (user.name || "U")[0]?.toUpperCase()
+                  )}
+                </div>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#f8fafc" }}>
+                  {user.name.split(" ")[0]}
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                aria-label="Sign In"
+                title="Sign In"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  fontSize: "11px",
+                  color: "#fff",
+                  background: "linear-gradient(135deg, #00ccff, #3b82f6)",
+                  padding: "5px 14px",
+                  borderRadius: "999px",
+                  border: "none",
+                  boxShadow: "0 2px 10px rgba(0, 204, 255, 0.4)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                <span>Sign In</span>
+              </button>
+            )}
+          </div>
         )}
-      </div>
+      </header>
 
       {/* ── Active Map Picker Floating Indicator ──────────────────────── */}
       {mapPickTarget && (
@@ -2114,322 +2413,6 @@ export default function Map() {
         />
       )}
 
-      {/* ── Top Floating Action HUD Bar (Voice, Squad, Weather, Leaderboard, SOS, Themes) ── */}
-      {mounted && (
-        <div
-          style={{
-            position: "absolute",
-            top: "16px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 30,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "rgba(15, 23, 42, 0.9)",
-            backdropFilter: "blur(16px)",
-            padding: "6px 12px",
-            borderRadius: "999px",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
-            maxWidth: "92vw",
-            overflowX: "auto",
-          }}
-          className="no-scrollbar"
-        >
-          {/* Voice Assistant HUD */}
-          <VoiceAssistantHUD
-            isListening={isListening}
-            isSpeaking={isSpeaking}
-            transcript={transcript}
-            voiceEnabled={voiceEnabled}
-            onToggleListening={() => {
-              if (!user) {
-                toast.info("Please sign in or register to use Voice Assistant & Commands");
-                setAuthModalOpen(true);
-                return;
-              }
-              toggleListening();
-            }}
-            onToggleMute={() => {
-              if (!user) {
-                toast.info("Please sign in or register to customize Voice Co-Pilot audio");
-                setAuthModalOpen(true);
-                return;
-              }
-              setVoiceEnabled(!voiceEnabled);
-            }}
-          />
-
-          <div style={{ width: "1px", height: "24px", background: "rgba(255, 255, 255, 0.15)" }} />
-
-          {/* Squad Convoy Button */}
-          <button
-            onClick={() => {
-              if (!user) {
-                toast.info("Please sign in or register to join or create a rider squad convoy");
-                setAuthModalOpen(true);
-                return;
-              }
-              setSquadModalOpen(true);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 12px",
-              borderRadius: "999px",
-              border: activeSquad ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.1)",
-              background: activeSquad ? "rgba(56, 189, 248, 0.2)" : "rgba(255, 255, 255, 0.05)",
-              color: activeSquad ? "#38bdf8" : "#94a3b8",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-            title="Rider Squads & Live Convoy Mode"
-          >
-            <Users className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline">{activeSquad ? activeSquad.name : "Squad"}</span>
-            {activeSquad && (
-              <span style={{ fontSize: "10px", background: "#38bdf8", color: "#0f172a", padding: "1px 5px", borderRadius: "999px", fontWeight: 800 }}>
-                {activeSquad.members?.length || 1}
-              </span>
-            )}
-          </button>
-
-          {/* Monsoon Weather Radar Toggle */}
-          <button
-            onClick={() => {
-              if (!user) {
-                toast.info("Please sign in or register to access Live Monsoon Rain Radar");
-                setAuthModalOpen(true);
-                return;
-              }
-              setWeatherRadarEnabled(!weatherRadarEnabled);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 12px",
-              borderRadius: "999px",
-              border: weatherRadarEnabled ? "1px solid #60a5fa" : "1px solid rgba(255, 255, 255, 0.1)",
-              background: weatherRadarEnabled ? "rgba(96, 165, 250, 0.25)" : "rgba(255, 255, 255, 0.05)",
-              color: weatherRadarEnabled ? "#93c5fd" : "#94a3b8",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-            title="Toggle Live Rain & Monsoon Weather Radar"
-          >
-            <CloudRain className={`w-3.5 h-3.5 ${weatherRadarEnabled ? "text-blue-400 animate-bounce" : "text-slate-400"}`} />
-            <span className="hidden sm:inline">Rain Radar</span>
-          </button>
-
-          {/* City Leaderboard Button */}
-          <button
-            onClick={() => {
-              if (!user) {
-                toast.info("Please sign in or register to view Rider Rankings & Leaderboard");
-                setAuthModalOpen(true);
-                return;
-              }
-              setLeaderboardModalOpen(true);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 12px",
-              borderRadius: "999px",
-              border: "1px solid rgba(245, 158, 11, 0.3)",
-              background: "rgba(245, 158, 11, 0.1)",
-              color: "#fbbf24",
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-            title="City Safety Leaderboard & Karma Champions"
-          >
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Ranks</span>
-          </button>
-
-          {/* Offline Map Pack Button */}
-          <button
-            onClick={() => {
-              if (!user) {
-                toast.info("Please sign in or register to download Offline Highway Map Packs");
-                setAuthModalOpen(true);
-                return;
-              }
-              setOfflineModalOpen(true);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 10px",
-              borderRadius: "999px",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              background: "rgba(255, 255, 255, 0.05)",
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-            title="Download Offline Highway Pack"
-          >
-            <DownloadCloud className="w-3.5 h-3.5 text-slate-300" />
-          </button>
-
-          {/* Map Theme Toggle (Dark / Satellite / Neon Fog HUD) */}
-          <button
-            onClick={() => {
-              if (!user) {
-                toast.info("Please sign in or register to customize map styles & HUD themes");
-                setAuthModalOpen(true);
-                return;
-              }
-              const nextTheme = mapTheme === "dark" ? "satellite" : mapTheme === "satellite" ? "neon_fog" : "dark";
-              handleThemeChange(nextTheme);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-              padding: "6px 10px",
-              borderRadius: "999px",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              background: "rgba(255, 255, 255, 0.05)",
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-            title={`Current Style: ${mapTheme.toUpperCase()}. Click to switch style.`}
-          >
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden md:inline uppercase text-[10px] font-bold">{mapTheme}</span>
-          </button>
-
-          {/* 1-Tap Emergency SOS (Red Pulsing) */}
-          <button
-            onClick={() => {
-              if (!user) {
-                toast.info("Please sign in or register to access Emergency SOS");
-                setAuthModalOpen(true);
-                return;
-              }
-              setSosModalOpen(true);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 14px",
-              borderRadius: "999px",
-              border: "1.5px solid #ef4444",
-              background: "linear-gradient(135deg, #dc2626, #991b1b)",
-              color: "#ffffff",
-              fontSize: "12px",
-              fontWeight: 900,
-              cursor: "pointer",
-              boxShadow: "0 0 14px rgba(239, 68, 68, 0.6)",
-              whiteSpace: "nowrap",
-            }}
-            title="1-Tap Emergency SOS coordinates & siren alarm"
-          >
-            <AlertOctagon className="w-3.5 h-3.5 animate-pulse" />
-            <span>SOS</span>
-          </button>
-        </div>
-      )}
-
-      {/* ── Profile / Dashboard Trigger (top-right) ──────────────────── */}
-      {mounted && user ? (
-        <div style={{ position: "absolute", top: "16px", right: "60px", zIndex: 10, display: "flex", alignItems: "center", gap: "8px" }}>
-          <button
-            id="map-profile-btn"
-            onClick={() => setProfileModalOpen(true)}
-            aria-label="User Profile"
-            title={`View Profile: ${user.name} (@${user.handle || "rider"})`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              background: "rgba(15, 23, 42, 0.88)",
-              backdropFilter: "blur(14px)",
-              border: "1.5px solid rgba(56, 189, 248, 0.4)",
-              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4), 0 0 16px rgba(56, 189, 248, 0.2)",
-              borderRadius: "999px",
-              padding: "4px 14px 4px 4px",
-              cursor: "pointer",
-              transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-            }}
-          >
-            <div
-              style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                overflow: "hidden",
-                background: "linear-gradient(135deg, #0284c7, #6366f1)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-                fontSize: "13px",
-                color: "#fff",
-                border: "1.5px solid #38bdf8",
-                flexShrink: 0,
-              }}
-            >
-              {user.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatar_url} alt={user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                (user.name || "U")[0]?.toUpperCase()
-              )}
-            </div>
-            <div style={{ textAlign: "left", lineHeight: 1.15 }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "#f8fafc", maxWidth: "90px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {user.name.split(" ")[0]}
-              </div>
-              <div style={{ fontSize: "10px", color: "#38bdf8", fontFamily: "monospace", fontWeight: 600 }}>
-                @{user.handle ? user.handle.replace(/^@/, '') : `rider_${user.id}`}
-              </div>
-            </div>
-          </button>
-        </div>
-      ) : mounted && !user ? (
-        <button
-          onClick={() => setAuthModalOpen(true)}
-          className="map-dashboard-btn"
-          aria-label="Sign In"
-          title="Sign In"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 700,
-            fontSize: "12px",
-            color: "#fff",
-            background: "linear-gradient(135deg, #00ccff, #3b82f6)",
-            width: "auto",
-            padding: "0 16px",
-            borderRadius: "999px",
-            border: "none",
-            boxShadow: "0 4px 14px rgba(0, 204, 255, 0.4)",
-            cursor: "pointer",
-          }}
-        >
-          <span>Sign In</span>
-        </button>
-      ) : null}
 
       {/* ── Squad Convoy Modal ─────────────────────────────────────────── */}
       <SquadModal
