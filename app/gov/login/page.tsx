@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Landmark, ArrowLeft, LogIn } from "lucide-react";
 import { authService } from "../_services/auth";
 import { useAuthContext } from "../_store/auth.store";
 
@@ -36,7 +37,9 @@ export default function GovLoginPage() {
   return (
     <div className="login-root">
       <div className="login-card">
-        <div className="login-card__emblem">🏛️</div>
+        <div className="login-card__emblem flex items-center justify-center mx-auto mb-3">
+          <Landmark className="w-8 h-8 text-sky-400" />
+        </div>
         <h1 className="login-card__title">Government Portal</h1>
         <p className="login-card__subtitle">
           Road Hazard Operations — Authorized Officials Only
@@ -74,17 +77,21 @@ export default function GovLoginPage() {
           </div>
 
           <button
-            className="btn btn--primary"
+            className="btn btn--primary flex items-center justify-center gap-2"
             type="submit"
             disabled={loading}
             style={{ width: "100%", marginTop: "8px" }}
           >
             {loading ? (
               <>
-                <span className="spinner" /> Signing in…
+                <span className="spinner" />
+                <span>Signing in…</span>
               </>
             ) : (
-              "Sign In to GovOps"
+              <>
+                <LogIn className="w-4 h-4" />
+                <span>Sign In to GovOps</span>
+              </>
             )}
           </button>
         </form>
@@ -92,13 +99,15 @@ export default function GovLoginPage() {
         <div style={{ marginTop: "20px", textAlign: "center" }}>
           <Link
             href="/"
+            className="inline-flex items-center gap-1.5"
             style={{
               fontSize: "12px",
               color: "var(--gov-text-muted)",
-              textDecoration: "underline",
+              textDecoration: "none",
             }}
           >
-            ← Back to Citizen Navigation Map
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Citizen Navigation Map</span>
           </Link>
         </div>
       </div>

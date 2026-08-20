@@ -3,14 +3,13 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
 import {
-  Shield,
+  ShieldCheck,
   X,
   Mail,
   Lock,
   User,
   ArrowRight,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../_hooks/useAuth";
@@ -47,7 +46,7 @@ export default function AuthModal({
     try {
       if (mode === "signin") {
         await signIn(email, password);
-        toast.success("Welcome back to RideBuddy! 🛡️");
+        toast.success("Welcome back to RideBuddy!");
       } else {
         if (!name.trim()) {
           setError("Please enter your name");
@@ -55,7 +54,7 @@ export default function AuthModal({
           return;
         }
         await signUp(email, password, name);
-        toast.success("Account created successfully! Welcome aboard 🚀");
+        toast.success("Account created successfully! Welcome aboard.");
       }
 
       onClose();
@@ -85,7 +84,7 @@ export default function AuthModal({
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/25 mb-3">
-            <Shield className="h-6 w-6" />
+            <ShieldCheck className="h-6 w-6" />
           </div>
           <h3 className="text-2xl font-bold text-white tracking-tight">
             {mode === "signin" ? "Sign In to RideBuddy" : "Create Free Account"}

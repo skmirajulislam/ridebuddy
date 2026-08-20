@@ -16,6 +16,13 @@ import {
   CloudUpload,
   Award,
   Globe,
+  AlertTriangle,
+  Droplets,
+  Bot,
+  Zap,
+  Volume2,
+  Landmark,
+  Map as MapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -183,16 +190,17 @@ export default function WelcomePage() {
                 {/* Floating Hazard Alert 1 */}
                 <div className="absolute top-6 left-4 sm:left-8 max-w-xs sm:max-w-sm rounded-2xl border border-red-500/40 bg-slate-950/90 p-3.5 sm:p-4 shadow-2xl text-left transform-gpu hover:scale-102 transition-transform">
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0 text-lg">
-                      🕳️
+                    <div className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="text-xs sm:text-sm font-bold text-white">
                         Severe Pothole Cluster — 140m Ahead
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-semibold">
-                          🤖 96% AI Verified
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-semibold">
+                          <Bot className="w-3 h-3" />
+                          <span>96% AI Verified</span>
                         </span>
                         <span className="text-[11px] text-slate-400">Severity Level 3</span>
                       </div>
@@ -203,16 +211,17 @@ export default function WelcomePage() {
                 {/* Floating Hazard Alert 2 */}
                 <div className="hidden sm:block absolute top-24 right-8 max-w-sm rounded-2xl border border-sky-500/40 bg-slate-950/90 p-4 shadow-2xl text-left transform-gpu hover:scale-102 transition-transform">
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center flex-shrink-0 text-lg">
-                      🌊
+                    <div className="h-10 w-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center flex-shrink-0">
+                      <Droplets className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="text-sm font-bold text-white">
                         Waterlogged Underpass
                       </div>
                       <div className="mt-1.5 flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold">
-                          ⚡ Safe Reroute: Flyover (+2 min)
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold">
+                          <Zap className="w-3 h-3" />
+                          <span>Safe Reroute: Flyover (+2 min)</span>
                         </span>
                       </div>
                     </div>
@@ -370,8 +379,8 @@ export default function WelcomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             <Card className="hover:border-cyan-500/40 p-6 bg-slate-900/80">
-              <div className="h-12 w-12 rounded-2xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center mb-5 text-xl">
-                🕳️
+              <div className="h-12 w-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mb-5">
+                <AlertTriangle className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">Pothole & Surface Radar</h3>
               <p className="text-sm text-slate-400 leading-relaxed">
@@ -380,8 +389,8 @@ export default function WelcomePage() {
             </Card>
 
             <Card className="hover:border-blue-500/40 p-6 bg-slate-900/80">
-              <div className="h-12 w-12 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center mb-5 text-xl">
-                🌊
+              <div className="h-12 w-12 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center mb-5">
+                <Droplets className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">Monsoon & Waterlog Alerts</h3>
               <p className="text-sm text-slate-400 leading-relaxed">
@@ -390,8 +399,8 @@ export default function WelcomePage() {
             </Card>
 
             <Card className="hover:border-red-500/40 p-6 bg-slate-900/80">
-              <div className="h-12 w-12 rounded-2xl bg-red-500/15 text-red-400 flex items-center justify-center mb-5 text-xl">
-                🔊
+              <div className="h-12 w-12 rounded-2xl bg-red-500/15 text-red-400 flex items-center justify-center mb-5">
+                <Volume2 className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">Proximity Voice Warnings</h3>
               <p className="text-sm text-slate-400 leading-relaxed">
@@ -482,8 +491,9 @@ export default function WelcomePage() {
                     sizes="(max-width: 1024px) 100vw, 40vw"
                     className="object-cover opacity-90"
                   />
-                  <div className="absolute bottom-4 right-4 px-4 py-1.5 rounded-full bg-black/80 border border-cyan-500/40 text-cyan-300 text-xs font-bold">
-                    🏛️ Authorized Officials Only
+                  <div className="absolute bottom-4 right-4 flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-black/80 border border-cyan-500/40 text-cyan-300 text-xs font-bold backdrop-blur-md">
+                    <Landmark className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>Authorized Officials Only</span>
                   </div>
                 </div>
               </div>
@@ -567,8 +577,9 @@ export default function WelcomePage() {
                 <ArrowRight className="h-5 w-5" />
               </Button>
               <Link href="/" className="w-full sm:w-auto">
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto h-13 px-8 text-base">
-                  <span>Launch Live Map 🗺️</span>
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto h-13 px-8 text-base flex items-center gap-2">
+                  <span>Launch Live Map</span>
+                  <MapIcon className="h-4 w-4" />
                 </Button>
               </Link>
             </div>

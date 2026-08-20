@@ -2,13 +2,21 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  LayoutDashboard,
+  AlertTriangle,
+  Map as MapIcon,
+  Route,
+  Landmark,
+  LogOut,
+} from "lucide-react";
 import { authService } from "../_services/auth";
 import { useAuthContext } from "../_store/auth.store";
 
 const NAV = [
-  { href: "/gov", icon: "▦", label: "Dashboard" },
-  { href: "/gov/hazards", icon: "⚠️", label: "Hazards" },
-  { href: "/gov/map", icon: "🗺️", label: "Map View" },
+  { href: "/gov", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/gov/hazards", icon: AlertTriangle, label: "Hazards" },
+  { href: "/gov/map", icon: MapIcon, label: "Map View" },
 ];
 
 export default function Sidebar() {
@@ -34,15 +42,17 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <div className="sidebar__brand-icon">🏛️</div>
+        <div className="sidebar__brand-icon flex items-center justify-center">
+          <Landmark className="w-5 h-5 text-sky-400" />
+        </div>
         <div>
-          <div className="sidebar__brand-name">GovOps Portal</div>
+          <div className="sidebar__brand-name font-bold">GovOps Portal</div>
           <div className="sidebar__brand-sub">Road Hazard Command</div>
         </div>
       </div>
 
       <nav className="sidebar__nav">
-        {NAV.map(({ href, icon, label }) => {
+        {NAV.map(({ href, icon: Icon, label }) => {
           const isActive = pathname === href;
           return (
             <Link
@@ -50,8 +60,10 @@ export default function Sidebar() {
               href={href}
               className={`sidebar__link${isActive ? " sidebar__link--active" : ""}`}
             >
-              <span className="sidebar__link-icon">{icon}</span>
-              {label}
+              <span className="sidebar__link-icon flex items-center justify-center">
+                <Icon className="w-4 h-4" />
+              </span>
+              <span>{label}</span>
             </Link>
           );
         })}
@@ -62,8 +74,10 @@ export default function Sidebar() {
             className="sidebar__link"
             style={{ color: "var(--gov-primary)", fontWeight: 600 }}
           >
-            <span className="sidebar__link-icon">🛣️</span>
-            Citizen Map
+            <span className="sidebar__link-icon flex items-center justify-center">
+              <Route className="w-4 h-4" />
+            </span>
+            <span>Citizen Map</span>
           </Link>
         </div>
       </nav>
@@ -76,8 +90,9 @@ export default function Sidebar() {
             <div className="sidebar__user-role">Government Official</div>
           </div>
         </div>
-        <button className="sidebar__logout" onClick={handleLogout}>
-          <span>⬅</span> Log out
+        <button className="sidebar__logout flex items-center justify-center gap-1.5" onClick={handleLogout}>
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Log out</span>
         </button>
       </div>
     </aside>

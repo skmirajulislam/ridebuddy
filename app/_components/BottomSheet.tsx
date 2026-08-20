@@ -1,23 +1,49 @@
 "use client";
 
 // app/_components/BottomSheet.tsx
-// Enhanced from original — 4-step reporting flow with Gemini image validation.
-// Props interface extended with idToken; all original props preserved (backward-compatible).
+// Enhanced 4-step reporting flow with Gemini image validation and premium Lucide icons.
 
-import { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { uploadFiles } from "@/lib/uploadthing";
 import { toast } from "sonner";
+import {
+  AlertTriangle,
+  Droplets,
+  Car,
+  Ban,
+  Boxes,
+  Activity,
+  Construction,
+  Lightbulb,
+  MapPin,
+  Camera,
+  Check,
+  CheckCircle2,
+  X,
+  ArrowLeft,
+  ArrowRight,
+  ShieldAlert,
+  Send,
+  type LucideIcon,
+} from "lucide-react";
 
-const HAZARD_TYPES = [
-  { value: "pothole", label: "Pothole", icon: "🕳️" },
-  { value: "flood", label: "Flood", icon: "🌊" },
-  { value: "accident", label: "Accident", icon: "🚗" },
-  { value: "roadblock", label: "Road Block", icon: "🚧" },
-  { value: "debris", label: "Debris", icon: "🪨" },
-  { value: "speed braker", label: "Un Marked Speed Braker", icon: "❌" },
-  { value: "patch", label: "Patch work in road", icon: "⛔️" },
-  { value: "low light", label: "Low Light", icon: "💡" },
-  { value: "others", label: "Others", icon: "📍" },
+export interface HazardTypeItem {
+  value: string;
+  label: string;
+  icon: LucideIcon;
+  color: string;
+}
+
+const HAZARD_TYPES: readonly HazardTypeItem[] = [
+  { value: "pothole", label: "Pothole", icon: AlertTriangle, color: "#f59e0b" },
+  { value: "flood", label: "Flood", icon: Droplets, color: "#3b82f6" },
+  { value: "accident", label: "Accident", icon: Car, color: "#ef4444" },
+  { value: "roadblock", label: "Road Block", icon: Ban, color: "#f43f5e" },
+  { value: "debris", label: "Debris", icon: Boxes, color: "#a855f7" },
+  { value: "speed braker", label: "Unmarked Speed Bump", icon: Activity, color: "#eab308" },
+  { value: "patch", label: "Road Patchwork", icon: Construction, color: "#f97316" },
+  { value: "low light", label: "Low Lighting", icon: Lightbulb, color: "#eab308" },
+  { value: "others", label: "Others", icon: MapPin, color: "#6366f1" },
 ] as const;
 
 const SEVERITY_LEVELS = [
@@ -35,7 +61,7 @@ interface BottomSheetProps {
   userLng: number | null;
   apiUrl: string;
   onSuccess: () => void;
-  idToken?: string | null; // NEW — auth token; undefined = unauthenticated
+  idToken?: string | null;
 }
 
 // Convert File to base64 string (no data URL prefix)
@@ -95,11 +121,10 @@ export default function BottomSheet({
     setError(null);
   };
 
-  const handleSubmit = async () => {
-    console.log("[BottomSheet] handleSubmit called");
-    console.log("[BottomSheet] userLat:", userLat, "userLng:", userLng);
-    console.log("[BottomSheet] idToken:", idToken ? "present" : "missing");
+  const selectedHazardConfig = HAZARD_TYPES.find((t) => t.value === type) || HAZARD_TYPES[0];
+  const SelectedIcon = selectedHazardConfig.icon;
 
+  const handleSubmit = async () => {
     if (!userLat || !userLng) {
       setError("Unable to get your location. Please enable GPS and try again.");
       return;
@@ -115,37 +140,31 @@ export default function BottomSheet({
     try {
       // Step 1: encode image for AI validation
       setSubmitStatus("validating");
-      console.log("[BottomSheet] Encoding image...");
       const imageBase64 = await fileToBase64(imageFile);
       const imageMimeType = imageFile.type || "image/jpeg";
-      console.log("[BottomSheet] Image encoded, size:", imageBase64.length, "type:", imageMimeType);
 
       // Step 2: Upload to UploadThing storage
       let uploadedImageUrl: string | null = null;
       try {
-        console.log("[BottomSheet] Uploading to UploadThing storage...");
         const uploadRes = await uploadFiles("hazardImageUploader", {
           files: [imageFile],
         });
         if (uploadRes && uploadRes.length > 0) {
           uploadedImageUrl = uploadRes[0].url || uploadRes[0].appUrl || null;
-          console.log("[BottomSheet] ✅ UploadThing upload success:", uploadedImageUrl);
         }
       } catch (uploadErr) {
-        console.warn("[BottomSheet] UploadThing upload warning (continuing with AI validation):", uploadErr);
+        console.warn("[BottomSheet] UploadThing upload warning:", uploadErr);
       }
 
       // Step 3: submit to backend (Gemini validation happens server-side)
       setSubmitStatus("submitting");
       const endpoint = apiUrl ? `${apiUrl}/api/hazards` : "/api/hazards";
-      console.log("[BottomSheet] Submitting to:", endpoint);
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
       if (idToken) {
         headers["Authorization"] = `Bearer ${idToken}`;
-        console.log("[BottomSheet] Auth header added");
       }
 
       const payload = {
@@ -166,20 +185,15 @@ export default function BottomSheet({
         body: JSON.stringify(payload),
       });
 
-      console.log("[BottomSheet] Response status:", res.status);
       const responseData = await res.json();
-      console.log("[BottomSheet] Response data:", responseData);
 
       if (!res.ok) {
-        // Surface meaningful backend error messages
         const errorMsg = responseData.error || `Server error: ${res.status}`;
-        console.error("[BottomSheet] Request failed:", responseData);
         toast.error(errorMsg, { id: "hazard-submit" });
         throw new Error(errorMsg);
       }
 
-      console.log("[BottomSheet] ✅ Hazard submitted successfully!");
-      toast.success("✅ Hazard verified & reported to live radar!", { id: "hazard-submit" });
+      toast.success("Hazard verified and reported to live radar!", { id: "hazard-submit" });
       setSubmitStatus("success");
       setTimeout(() => {
         reset();
@@ -187,7 +201,7 @@ export default function BottomSheet({
         onClose();
       }, 1500);
     } catch (err: unknown) {
-      console.error("[BottomSheet] ❌ Submit error:", err);
+      console.error("[BottomSheet] Submit error:", err);
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setSubmitStatus("error");
     } finally {
@@ -217,14 +231,19 @@ export default function BottomSheet({
         <div className="bottom-sheet__handle" />
 
         {/* Header */}
-        <div className="bottom-sheet__header">
-          <h2 className="bottom-sheet__title">Report a Hazard</h2>
+        <div className="bottom-sheet__header flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
+              <ShieldAlert className="w-4 h-4" />
+            </div>
+            <h2 className="bottom-sheet__title">Report a Hazard</h2>
+          </div>
           <button
-            className="bottom-sheet__close"
+            className="bottom-sheet__close flex items-center justify-center"
             onClick={handleClose}
             aria-label="Close report form"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -237,8 +256,8 @@ export default function BottomSheet({
                 key={n}
                 className={`step-indicator__item${step === n ? " step-indicator__item--active" : ""}${step > n ? " step-indicator__item--done" : ""}`}
               >
-                <div className="step-indicator__dot">
-                  {step > n ? "✓" : n}
+                <div className="step-indicator__dot flex items-center justify-center">
+                  {step > n ? <Check className="w-3.5 h-3.5" /> : n}
                 </div>
                 <span className="step-indicator__label">{label}</span>
                 {i < STEP_LABELS.length - 1 && (
@@ -256,20 +275,33 @@ export default function BottomSheet({
             <>
               <p className="bottom-sheet__section-label">Type of Hazard</p>
               <div className="bottom-sheet__type-grid">
-                {HAZARD_TYPES.map((t) => (
-                  <button
-                    key={t.value}
-                    className={`bottom-sheet__type-btn${type === t.value ? " bottom-sheet__type-btn--active" : ""}`}
-                    onClick={() => setType(t.value)}
-                    aria-pressed={type === t.value}
-                  >
-                    <span className="bottom-sheet__type-icon">{t.icon}</span>
-                    <span className="bottom-sheet__type-label">{t.label}</span>
-                  </button>
-                ))}
+                {HAZARD_TYPES.map((t) => {
+                  const IconComp = t.icon;
+                  const isSelected = type === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      className={`bottom-sheet__type-btn flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
+                        isSelected
+                          ? "bottom-sheet__type-btn--active border-sky-500 bg-sky-500/10"
+                          : "border-slate-700/50 hover:border-slate-600 bg-slate-800/40"
+                      }`}
+                      onClick={() => setType(t.value)}
+                      aria-pressed={isSelected}
+                    >
+                      <span
+                        className="bottom-sheet__type-icon flex items-center justify-center w-8 h-8 rounded-lg"
+                        style={{ color: t.color, backgroundColor: `${t.color}15` }}
+                      >
+                        <IconComp className="w-5 h-5" />
+                      </span>
+                      <span className="bottom-sheet__type-label font-medium text-xs text-center">{t.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <p className="bottom-sheet__section-label">Severity</p>
+              <p className="bottom-sheet__section-label mt-4">Severity</p>
               <div className="bottom-sheet__severity-row">
                 {SEVERITY_LEVELS.map((s) => (
                   <button
@@ -285,10 +317,11 @@ export default function BottomSheet({
               </div>
 
               <button
-                className="bottom-sheet__submit"
+                className="bottom-sheet__submit flex items-center justify-center gap-2 mt-4"
                 onClick={() => setStep(2)}
               >
-                Next: Capture Image →
+                <span>Next: Capture Image</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </>
           )}
@@ -301,7 +334,7 @@ export default function BottomSheet({
                 Take a clear photo of the hazard. Our AI will verify it&apos;s a real road hazard.
               </p>
 
-              {/* Hidden file input — camera only on mobile */}
+              {/* Hidden file input */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -321,32 +354,35 @@ export default function BottomSheet({
                     className="camera-preview__img"
                   />
                   <button
-                    className="camera-preview__retake"
+                    className="camera-preview__retake flex items-center gap-1.5"
                     onClick={() => {
                       setImageFile(null);
                       setImagePreviewUrl(null);
                       fileInputRef.current?.click();
                     }}
                   >
-                    📷 Retake
+                    <Camera className="w-4 h-4" />
+                    <span>Retake</span>
                   </button>
                 </div>
               ) : (
                 <button
                   id="capture-photo-btn"
-                  className="camera-capture-btn"
+                  className="camera-capture-btn flex items-center justify-center gap-2"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  📷 Capture Photo
+                  <Camera className="w-5 h-5" />
+                  <span>Capture Photo</span>
                 </button>
               )}
 
-              <div className="step-nav">
-                <button className="step-nav__back" onClick={() => setStep(1)}>
-                  ← Back
+              <div className="step-nav flex items-center gap-2 mt-4">
+                <button className="step-nav__back flex items-center gap-1.5" onClick={() => setStep(1)}>
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back</span>
                 </button>
                 <button
-                  className="bottom-sheet__submit step-nav__next"
+                  className="bottom-sheet__submit step-nav__next flex items-center justify-center gap-1.5"
                   onClick={() => {
                     if (!imageFile) {
                       setError("Please capture a photo first.");
@@ -357,7 +393,8 @@ export default function BottomSheet({
                   }}
                   disabled={!imageFile}
                 >
-                  Next: Confirm Location →
+                  <span>Next: Confirm Location</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
 
@@ -369,46 +406,53 @@ export default function BottomSheet({
           {step === 3 && (
             <>
               <p className="bottom-sheet__section-label">Hazard Location</p>
-              <div className="location-confirm">
-                <div className="location-confirm__map-pin">📍</div>
+              <div className="location-confirm flex items-center gap-3">
+                <div className="location-confirm__map-pin flex items-center justify-center w-10 h-10 rounded-full bg-sky-500/15 text-sky-400">
+                  <MapPin className="w-5 h-5" />
+                </div>
                 <div>
-                  <p className="location-confirm__coords">
+                  <p className="location-confirm__coords font-mono font-medium">
                     {userLat && userLng
                       ? `${userLat.toFixed(5)}, ${userLng.toFixed(5)}`
                       : "Waiting for GPS..."}
                   </p>
-                  <p className="location-confirm__note">
+                  <p className="location-confirm__note text-xs text-slate-400">
                     Your current position will be recorded as the hazard location.
                   </p>
                 </div>
               </div>
 
               {/* Summary card */}
-              <div className="report-summary">
+              <div className="report-summary mt-3">
                 <div className="report-summary__row">
                   <span className="report-summary__label">Type</span>
-                  <span className="report-summary__value" style={{ textTransform: "capitalize" }}>
-                    {HAZARD_TYPES.find(t => t.value === type)?.icon} {type}
+                  <span className="report-summary__value flex items-center gap-1.5 capitalize font-medium">
+                    <SelectedIcon className="w-4 h-4" style={{ color: selectedHazardConfig.color }} />
+                    <span>{type}</span>
                   </span>
                 </div>
                 <div className="report-summary__row">
                   <span className="report-summary__label">Severity</span>
-                  <span className="report-summary__value">
-                    {SEVERITY_LEVELS.find(s => s.value === severity)?.label}
+                  <span className="report-summary__value font-medium">
+                    {SEVERITY_LEVELS.find((s) => s.value === severity)?.label}
                   </span>
                 </div>
                 <div className="report-summary__row">
                   <span className="report-summary__label">Photo</span>
-                  <span className="report-summary__value">✅ Captured</span>
+                  <span className="report-summary__value flex items-center gap-1 text-emerald-400 font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Captured</span>
+                  </span>
                 </div>
               </div>
 
-              <div className="step-nav">
-                <button className="step-nav__back" onClick={() => setStep(2)}>
-                  ← Back
+              <div className="step-nav flex items-center gap-2 mt-4">
+                <button className="step-nav__back flex items-center gap-1.5" onClick={() => setStep(2)}>
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back</span>
                 </button>
                 <button
-                  className="bottom-sheet__submit step-nav__next"
+                  className="bottom-sheet__submit step-nav__next flex items-center justify-center gap-1.5"
                   onClick={() => {
                     if (!userLat || !userLng) {
                       setError("GPS not available yet.");
@@ -418,7 +462,8 @@ export default function BottomSheet({
                   }}
                   disabled={!userLat}
                 >
-                  Review & Submit →
+                  <span>Review & Submit</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </>
@@ -428,10 +473,12 @@ export default function BottomSheet({
           {step === 4 && (
             <>
               {submitStatus === "success" ? (
-                <div className="submit-success">
-                  <div className="submit-success__icon">✅</div>
-                  <p className="submit-success__title">Hazard Reported!</p>
-                  <p className="submit-success__sub">
+                <div className="submit-success flex flex-col items-center justify-center p-6 text-center">
+                  <div className="submit-success__icon flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 mb-3">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <p className="submit-success__title font-semibold text-lg">Hazard Reported!</p>
+                  <p className="submit-success__sub text-sm text-slate-400">
                     Thank you for keeping roads safe.
                   </p>
                 </div>
@@ -441,57 +488,68 @@ export default function BottomSheet({
 
                   {/* Thumbnail preview */}
                   {imagePreviewUrl && (
-                    <div className="final-preview">
+                    <div className="final-preview relative rounded-xl overflow-hidden mb-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={imagePreviewUrl} alt="Hazard" className="final-preview__img" />
-                      <div className="final-preview__badge">
-                        {HAZARD_TYPES.find(t => t.value === type)?.icon} {type}
+                      <img src={imagePreviewUrl} alt="Hazard" className="final-preview__img w-full h-36 object-cover" />
+                      <div className="final-preview__badge flex items-center gap-1.5 absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-700/60 capitalize">
+                        <SelectedIcon className="w-3.5 h-3.5" style={{ color: selectedHazardConfig.color }} />
+                        <span>{type}</span>
                       </div>
                     </div>
                   )}
 
                   {/* Loading state messaging */}
                   {isSubmitting && (
-                    <div className="submit-status-msg">
-                      {submitStatus === "validating" && (
-                        <><div className="auth-btn-spinner" /> Verifying hazard with AI...</>
-                      )}
-                      {submitStatus === "submitting" && (
-                        <><div className="auth-btn-spinner" /> Submitting report...</>
-                      )}
+                    <div className="submit-status-msg flex items-center justify-center gap-2 p-3 bg-sky-500/10 rounded-lg text-sky-300 text-sm">
+                      <div className="auth-btn-spinner" />
+                      <span>
+                        {submitStatus === "validating" ? "Verifying hazard with AI..." : "Submitting report..."}
+                      </span>
                     </div>
                   )}
 
                   {error && (
-                    <p className="bottom-sheet__error" role="alert">
-                      {error}
+                    <p className="bottom-sheet__error flex items-center gap-1.5 text-rose-400 text-sm mt-2" role="alert">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      <span>{error}</span>
                     </p>
                   )}
 
                   {!idToken && (
-                    <p className="auth-required-warning">
-                      ⚠️ You are not signed in. Please{" "}
-                      <a href="/login" className="auth-required-link">sign in</a>{" "}
-                      to submit reports.
+                    <p className="auth-required-warning flex items-center gap-1.5 text-amber-400 text-xs mt-2">
+                      <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+                      <span>
+                        You are not signed in. Please{" "}
+                        <a href="/login" className="auth-required-link underline font-medium">sign in</a>{" "}
+                        to submit reports.
+                      </span>
                     </p>
                   )}
 
-                  <div className="step-nav">
+                  <div className="step-nav flex items-center gap-2 mt-4">
                     <button
-                      className="step-nav__back"
+                      className="step-nav__back flex items-center gap-1.5"
                       onClick={() => setStep(3)}
                       disabled={isSubmitting}
                     >
-                      ← Back
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Back</span>
                     </button>
                     <button
                       id="submit-hazard-btn"
-                      className="bottom-sheet__submit step-nav__next"
+                      className="bottom-sheet__submit step-nav__next flex items-center justify-center gap-2"
                       onClick={handleSubmit}
                       disabled={isSubmitting || !userLat || !idToken}
                       aria-busy={isSubmitting}
                     >
-                      {isSubmitting ? "Processing..." : "🚨 Submit Report"}
+                      {isSubmitting ? (
+                        <span>Processing...</span>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          <span>Submit Report</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </>

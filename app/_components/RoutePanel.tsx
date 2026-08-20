@@ -1,5 +1,8 @@
 "use client";
 
+import React from "react";
+import { Clock, Milestone, AlertTriangle, Navigation, X, ShieldAlert } from "lucide-react";
+
 interface RoutePanelProps {
   distance: number | null;
   duration: number | null;
@@ -38,49 +41,58 @@ export default function RoutePanel({
 
   return (
     <div className="route-panel" role="region" aria-label="Route information">
-      <div className="route-panel__header">
-        <span className="route-panel__title">Route Summary</span>
+      <div className="route-panel__header flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
+          <span className="route-panel__title font-semibold text-sm">Route Summary</span>
+        </div>
         <button
-          className="route-panel__close"
+          className="route-panel__close flex items-center justify-center w-6 h-6 rounded-full hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
           onClick={onClose}
           aria-label="Close route panel"
         >
-          ✕
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="route-panel__stats">
-        <div className="route-panel__stat">
-          <span className="route-panel__stat-icon">🕐</span>
+      <div className="route-panel__stats flex items-center justify-around py-2">
+        <div className="route-panel__stat flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-sky-500/15 flex items-center justify-center text-sky-400">
+            <Clock className="w-4 h-4" />
+          </div>
           <div>
-            <div className="route-panel__stat-value">{formatDuration(duration)}</div>
-            <div className="route-panel__stat-label">Adjusted Duration</div>
+            <div className="route-panel__stat-value font-bold text-base text-slate-100">{formatDuration(duration)}</div>
+            <div className="route-panel__stat-label text-[11px] text-slate-400">Adjusted Duration</div>
             {originalDuration !== null && originalDuration !== duration && (
-              <div className="route-panel__stat-subtext">
+              <div className="route-panel__stat-subtext text-[10px] text-slate-500">
                 Base: {formatDuration(originalDuration)}
               </div>
             )}
           </div>
         </div>
 
-        <div className="route-panel__divider" />
+        <div className="route-panel__divider h-8 w-[1px] bg-slate-700/60" />
 
-        <div className="route-panel__stat">
-          <span className="route-panel__stat-icon">📏</span>
+        <div className="route-panel__stat flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400">
+            <Milestone className="w-4 h-4" />
+          </div>
           <div>
-            <div className="route-panel__stat-value">{formatDistance(distance)}</div>
-            <div className="route-panel__stat-label">Distance</div>
+            <div className="route-panel__stat-value font-bold text-base text-slate-100">{formatDistance(distance)}</div>
+            <div className="route-panel__stat-label text-[11px] text-slate-400">Total Distance</div>
           </div>
         </div>
 
         {hazardCount !== null && hazardCount > 0 && (
           <>
-            <div className="route-panel__divider" />
-            <div className="route-panel__stat route-panel__stat--warning">
-              <span className="route-panel__stat-icon">⚠️</span>
+            <div className="route-panel__divider h-8 w-[1px] bg-slate-700/60" />
+            <div className="route-panel__stat route-panel__stat--warning flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-400">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
               <div>
-                <div className="route-panel__stat-value">{hazardCount}</div>
-                <div className="route-panel__stat-label">Hazards</div>
+                <div className="route-panel__stat-value font-bold text-base text-amber-400">{hazardCount}</div>
+                <div className="route-panel__stat-label text-[11px] text-slate-400">Hazards on Route</div>
               </div>
             </div>
           </>
@@ -89,11 +101,12 @@ export default function RoutePanel({
 
       {canNavigate && onStartNavigation && (
         <button
-          className="route-panel__nav-btn"
+          className="route-panel__nav-btn flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-sm transition-all"
           onClick={onStartNavigation}
           aria-label="Start turn-by-turn navigation"
         >
-          🧭 Start Navigation
+          <Navigation className="w-4 h-4" />
+          <span>Start Navigation</span>
         </button>
       )}
     </div>

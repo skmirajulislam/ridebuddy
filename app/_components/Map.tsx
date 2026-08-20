@@ -21,6 +21,19 @@ import WarningBanner from "./WarningBanner";
 import AuthModal from "./AuthModal";
 
 import {
+  Shield,
+  ShieldAlert,
+  Crosshair,
+  Locate,
+  Navigation,
+  X,
+  ChevronUp,
+  ChevronDown,
+  ArrowLeft,
+  RotateCcw,
+} from "lucide-react";
+
+import {
   formatTurnInstruction,
   getNextAnnouncementDistance,
 } from "../_utils/navigationInstructions";
@@ -514,7 +527,7 @@ export default function Map() {
       const msg = `${
         nearbyHazard.type.charAt(0).toUpperCase() + nearbyHazard.type.slice(1)
       } reported within 300m ahead!`;
-      setWarning(`⚠️ ${msg}`);
+      setWarning(msg);
       sendNotification("RideBuddy — Hazard Nearby", msg);
     }
   }, [position, isMapLoaded, hazards, sendNotification, navigation.isActive]);
@@ -696,7 +709,7 @@ export default function Map() {
         if (mapInstance.getSource(id)) mapInstance.removeSource(id);
       }
     }
-    toast.info("Route & location markers cleared 🧹");
+    toast.info("Route & location markers cleared");
   };
 
   const clearFrom = () => {
@@ -775,7 +788,7 @@ export default function Map() {
           (a, b) => breakdown[b] - breakdown[a]
         )[0];
         setWarning(
-          `⚠️ ${hCount} hazard${hCount > 1 ? "s" : ""} on your route${topType ? ` (mostly ${topType})` : ""}. Drive carefully!`
+          `${hCount} hazard${hCount > 1 ? "s" : ""} on your route${topType ? ` (mostly ${topType})` : ""}. Drive carefully!`
         );
       } else {
         setWarning(null);
@@ -788,7 +801,7 @@ export default function Map() {
   // ── Get Route ─────────────────────────────────────────────────────────────
   const getRoute = async () => {
     if (!user) {
-      toast.info("Please sign in or register to calculate AI hazard-safe routes 🗺️");
+      toast.info("Please sign in or register to calculate AI hazard-safe routes");
       setAuthModalOpen(true);
       return;
     }
@@ -902,12 +915,12 @@ export default function Map() {
           (a, b) => breakdown[b] - breakdown[a]
         )[0];
         setWarning(
-          `⚠️ ${hCount} hazard${hCount > 1 ? "s" : ""} on your route${topType ? ` (mostly ${topType})` : ""}. Drive carefully!`
+          `${hCount} hazard${hCount > 1 ? "s" : ""} on your route${topType ? ` (mostly ${topType})` : ""}. Drive carefully!`
         );
       }
     } catch (err) {
       console.error("Route error:", err);
-      setWarning("❌ Could not find route. Try different locations.");
+      setWarning("Could not find route. Try different locations.");
     } finally {
       setIsLoadingRoute(false);
     }
@@ -923,7 +936,7 @@ export default function Map() {
   // Start navigation mode
   const startNavigation = useCallback(() => {
     if (!user) {
-      toast.info("Please sign in or register to start turn-by-turn navigation 🧭");
+      toast.info("Please sign in or register to start turn-by-turn navigation");
       setAuthModalOpen(true);
       return;
     }
@@ -932,7 +945,7 @@ export default function Map() {
     
     const selectedRoute = allRoutesData.allRoutes[selectedRouteIndex];
     if (!selectedRoute.legs || selectedRoute.legs.length === 0) {
-      setWarning("❌ Navigation data unavailable for this route");
+      setWarning("Navigation data unavailable for this route");
       return;
     }
 
@@ -964,23 +977,23 @@ export default function Map() {
       // Handle case where error object might be malformed
       if (typeof errorCode === 'undefined' || errorCode === null) {
         userMsg += "An unknown error occurred. Please check browser permissions.";
-        setWarning(`❌ ${userMsg}`);
+        setWarning(userMsg);
         exitNavigation();
       } else {
         switch (errorCode) {
           case 1: // PERMISSION_DENIED
             userMsg += "Please enable location permissions in your browser settings.";
-            setWarning(`❌ ${userMsg}`);
+            setWarning(userMsg);
             exitNavigation();
             break;
           case 2: // POSITION_UNAVAILABLE
             userMsg += "Location information is unavailable. Are you indoors?";
-            setWarning(`❌ ${userMsg}`);
+            setWarning(userMsg);
             exitNavigation();
             break;
           case 3: // TIMEOUT
             userMsg += "Location request timed out. Reconnecting...";
-            setWarning(`⚠️ ${userMsg}`);
+            setWarning(userMsg);
             // Immediately restart GPS watch on timeout
             if (gpsWatchIdRef.current) {
               navigator.geolocation.clearWatch(gpsWatchIdRef.current);
@@ -998,13 +1011,13 @@ export default function Map() {
                   }
                 );
                 gpsWatchIdRef.current = newWatchId;
-                setWarning("🔄 Reconnecting to GPS...");
+                setWarning("Reconnecting to GPS...");
               }
             }, 1000); // Retry after 1 second
             break;
           default:
             userMsg += `Error code ${errorCode}`;
-            setWarning(`❌ ${userMsg}`);
+            setWarning(userMsg);
             exitNavigation();
         }
       }
@@ -1023,7 +1036,7 @@ export default function Map() {
       );
       gpsWatchIdRef.current = watchId;
     } else {
-      setWarning("❌ Geolocation is not supported by your browser");
+      setWarning("Geolocation is not supported by your browser");
       exitNavigation();
       return;
     }
@@ -1094,7 +1107,7 @@ export default function Map() {
         } reported ahead in ${Math.round(hazardDistance)} meters`;
 
         sendNotification("Hazard Ahead", hazardMessage);
-        setWarning(`⚠️ ${hazardMessage}`);
+        setWarning(hazardMessage);
         if (typeof nearbyNavHazard.id === "number") {
           notifiedHazardIds.current.add(nearbyNavHazard.id);
         }
@@ -1212,7 +1225,7 @@ export default function Map() {
     if (!end || isReroutingRef.current) return;
 
     isReroutingRef.current = true;
-    setWarning("🔄 Rerouting...");
+    setWarning("Rerouting...");
 
     try {
       const res = await fetch(
@@ -1279,7 +1292,7 @@ export default function Map() {
       }
     } catch (error) {
       console.error("Reroute error:", error);
-      setWarning("❌ Reroute failed. Continue to destination.");
+      setWarning("Reroute failed. Continue to destination.");
     } finally {
       isReroutingRef.current = false;
       if (offRouteTimerRef.current) {
@@ -1367,31 +1380,32 @@ export default function Map() {
             borderBottom: isSearchOpen ? "1px solid rgba(255, 255, 255, 0.08)" : "none",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Link
               href="/welcome"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "5px",
-                fontSize: "12px",
+                fontSize: "11px",
                 fontWeight: 700,
                 color: "#00ccff",
                 textDecoration: "none",
                 background: "rgba(0, 204, 255, 0.12)",
                 border: "1px solid rgba(0, 204, 255, 0.3)",
-                padding: "3px 9px",
+                padding: "4px 10px",
                 borderRadius: "999px",
                 transition: "all 0.15s ease",
               }}
               title="Return to Main Website"
             >
-              <span>←</span>
+              <ArrowLeft className="w-3 h-3" />
               <span>Main</span>
             </Link>
 
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.7)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              🛡️ Routing
+            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <Shield className="w-3.5 h-3.5 text-sky-400" />
+              <span>Routing</span>
             </span>
           </div>
 
@@ -1403,7 +1417,7 @@ export default function Map() {
               color: "#ffffff",
               cursor: "pointer",
               borderRadius: "999px",
-              padding: "2px 8px",
+              padding: "4px 10px",
               fontSize: "11px",
               fontWeight: 700,
               display: "flex",
@@ -1413,7 +1427,7 @@ export default function Map() {
             }}
             title={isSearchOpen ? "Collapse search panel" : "Expand search panel"}
           >
-            <span>{isSearchOpen ? "▲" : "▼"}</span>
+            {isSearchOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             <span style={{ fontSize: "10px" }}>{isSearchOpen ? "Hide" : "Route"}</span>
           </button>
         </div>
@@ -1423,7 +1437,7 @@ export default function Map() {
           <>
             {/* FROM input */}
             <div className="search-panel__field">
-              <div className="search-panel__input-row">
+              <div className="search-panel__input-row flex items-center">
                 <span className="search-panel__dot search-panel__dot--start" />
                 <input
                   id="search-from"
@@ -1442,34 +1456,34 @@ export default function Map() {
                       border: "none",
                       color: "rgba(255, 255, 255, 0.4)",
                       cursor: "pointer",
-                      fontSize: "12px",
-                      fontWeight: 700,
                       padding: "0 4px",
+                      display: "flex",
+                      alignItems: "center",
                     }}
                     title="Clear start location"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                   {position && (
                     <button
-                      className="search-panel__loc-btn"
+                      className="search-panel__loc-btn flex items-center justify-center"
                       onClick={useMyLocation}
                       title="Use my current GPS location"
                       aria-label="Use my location as start"
                     >
-                      📍
+                      <Locate className="w-3.5 h-3.5 text-sky-400" />
                     </button>
                   )}
                   <button
-                    className={`search-panel__loc-btn ${mapPickTarget === 'from' ? 'active' : ''}`}
+                    className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'from' ? 'active' : ''}`}
                     onClick={() => setMapPickTarget(mapPickTarget === 'from' ? null : 'from')}
                     title={mapPickTarget === 'from' ? "Click map to set Start point" : "Pick Start point on map"}
                     aria-label="Pick start on map"
                     style={mapPickTarget === 'from' ? { background: "rgba(168, 85, 247, 0.3)", borderColor: "#a855f7" } : {}}
                   >
-                    🎯
+                    <Crosshair className="w-3.5 h-3.5 text-purple-400" />
                   </button>
                 </div>
               </div>
@@ -1490,7 +1504,7 @@ export default function Map() {
 
             {/* TO input */}
             <div className="search-panel__field">
-              <div className="search-panel__input-row">
+              <div className="search-panel__input-row flex items-center">
                 <span className="search-panel__dot search-panel__dot--end" />
                 <input
                   id="search-to"
@@ -1509,23 +1523,23 @@ export default function Map() {
                       border: "none",
                       color: "rgba(255, 255, 255, 0.4)",
                       cursor: "pointer",
-                      fontSize: "12px",
-                      fontWeight: 700,
                       padding: "0 4px",
+                      display: "flex",
+                      alignItems: "center",
                     }}
                     title="Clear destination"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
                 <button
-                  className={`search-panel__loc-btn ${mapPickTarget === 'to' ? 'active' : ''}`}
+                  className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'to' ? 'active' : ''}`}
                   onClick={() => setMapPickTarget(mapPickTarget === 'to' ? null : 'to')}
                   title={mapPickTarget === 'to' ? "Click map to set Destination" : "Pick Destination on map"}
                   aria-label="Pick destination on map"
                   style={mapPickTarget === 'to' ? { background: "rgba(255, 77, 109, 0.3)", borderColor: "#ff4d6d" } : {}}
                 >
-                  🎯
+                  <Crosshair className="w-3.5 h-3.5 text-rose-400" />
                 </button>
               </div>
               {toResults.length > 0 && (
@@ -1549,11 +1563,12 @@ export default function Map() {
                 id="get-route-btn"
                 onClick={getRoute}
                 disabled={!start || !end || isLoadingRoute}
-                className="search-panel__route-btn"
+                className="search-panel__route-btn flex items-center justify-center gap-2"
                 style={{ flex: 1 }}
                 aria-busy={isLoadingRoute}
               >
-                {isLoadingRoute ? "Finding best route..." : "🗺 Get Safe Route"}
+                <Navigation className="w-4 h-4" />
+                <span>{isLoadingRoute ? "Finding best route..." : "Get Safe Route"}</span>
               </button>
               {(start || end) && (
                 <button
@@ -1568,10 +1583,14 @@ export default function Map() {
                     fontWeight: 700,
                     cursor: "pointer",
                     transition: "all 0.15s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
                   }}
                   title="Reset all points and routes"
                 >
-                  Clear
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Clear</span>
                 </button>
               )}
             </div>
@@ -1602,7 +1621,10 @@ export default function Map() {
             border: "1px solid rgba(255, 255, 255, 0.3)",
           }}
         >
-          <span>🎯 Click anywhere on the map to set {mapPickTarget === "from" ? "Start Point (Purple)" : "Destination (Red)"}</span>
+          <span className="flex items-center gap-2">
+            <Crosshair className="w-4 h-4" />
+            <span>Click anywhere on the map to set {mapPickTarget === "from" ? "Start Point (Purple)" : "Destination (Red)"}</span>
+          </span>
           <button
             onClick={() => setMapPickTarget(null)}
             style={{
@@ -1611,17 +1633,15 @@ export default function Map() {
               color: "#fff",
               cursor: "pointer",
               borderRadius: "50%",
-              width: "20px",
-              height: "20px",
+              width: "22px",
+              height: "22px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "11px",
-              fontWeight: 800,
             }}
             title="Cancel pick mode"
           >
-            ✕
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
@@ -1728,7 +1748,7 @@ export default function Map() {
       <ReportButton
         onClick={() => {
           if (!user) {
-            toast.info("Please sign in or register to report road hazards 🛡️");
+            toast.info("Please sign in or register to report road hazards");
             setAuthModalOpen(true);
             return;
           }

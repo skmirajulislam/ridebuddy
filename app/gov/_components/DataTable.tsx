@@ -1,6 +1,8 @@
 "use client";
 
+import React from "react";
 import { formatDistanceToNow } from "date-fns";
+import { AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 import type { Hazard } from "../_services/api";
 
 interface DataTableProps {
@@ -12,14 +14,26 @@ interface DataTableProps {
 const SEV_LABEL: Record<number, string> = { 1: "Low", 2: "Medium", 3: "High" };
 
 export function StatusBadge({ status }: { status: Hazard["status"] }) {
-  const labels: Record<Hazard["status"], string> = {
-    active: "● Active",
-    in_progress: "◐ In Progress",
-    resolved: "✓ Resolved",
-  };
+  if (status === "resolved") {
+    return (
+      <span className="badge badge--resolved inline-flex items-center gap-1">
+        <CheckCircle2 className="w-3 h-3" />
+        <span>Resolved</span>
+      </span>
+    );
+  }
+  if (status === "in_progress") {
+    return (
+      <span className="badge badge--in_progress inline-flex items-center gap-1">
+        <Clock className="w-3 h-3" />
+        <span>In Progress</span>
+      </span>
+    );
+  }
   return (
-    <span className={`badge badge--${status}`}>
-      {labels[status] ?? status}
+    <span className="badge badge--active inline-flex items-center gap-1">
+      <AlertTriangle className="w-3 h-3" />
+      <span>Active</span>
     </span>
   );
 }

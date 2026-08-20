@@ -1,6 +1,8 @@
 "use client";
 
+import React from "react";
 import { formatDistanceToNow, format } from "date-fns";
+import { X, Play, CheckCircle2, RotateCcw } from "lucide-react";
 import type { Hazard } from "../_services/api";
 import { useUpdateStatus } from "../_hooks/useHazards";
 import { StatusBadge } from "./DataTable";
@@ -25,13 +27,13 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
     <div className={`hazard-panel${hazard ? " hazard-panel--open" : ""}`}>
       {hazard && (
         <>
-          <div className="hazard-panel__header">
+          <div className="hazard-panel__header flex items-center justify-between">
             <div>
-              <div className="hazard-panel__title">{hazard.type}</div>
+              <div className="hazard-panel__title capitalize">{hazard.type}</div>
               <StatusBadge status={hazard.status} />
             </div>
-            <button className="hazard-panel__close" onClick={onClose}>
-              ✕
+            <button className="hazard-panel__close flex items-center justify-center" onClick={onClose}>
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -113,29 +115,32 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
             <div className="panel-actions">
               {hazard.status !== "in_progress" && hazard.status !== "resolved" && (
                 <button
-                  className="btn btn--warning"
+                  className="btn btn--warning flex items-center justify-center gap-1.5"
                   onClick={() => act("in_progress")}
                   disabled={isPending}
                 >
-                  {isPending ? "Updating…" : "▶ Mark In Progress"}
+                  <Play className="w-3.5 h-3.5" />
+                  <span>{isPending ? "Updating…" : "Mark In Progress"}</span>
                 </button>
               )}
               {hazard.status !== "resolved" && (
                 <button
-                  className="btn btn--primary"
+                  className="btn btn--primary flex items-center justify-center gap-1.5"
                   onClick={() => act("resolved")}
                   disabled={isPending}
                 >
-                  {isPending ? "Updating…" : "✓ Mark Resolved"}
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{isPending ? "Updating…" : "Mark Resolved"}</span>
                 </button>
               )}
               {hazard.status !== "active" && (
                 <button
-                  className="btn btn--ghost"
+                  className="btn btn--ghost flex items-center justify-center gap-1.5"
                   onClick={() => act("active")}
                   disabled={isPending}
                 >
-                  ↩ Revert to Active
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Revert to Active</span>
                 </button>
               )}
             </div>
