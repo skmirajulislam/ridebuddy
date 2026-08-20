@@ -326,25 +326,66 @@ export default function Map() {
     },
   });
 
+  const createRasterStyle = (tiles: string[]): maplibregl.StyleSpecification => ({
+    version: 8,
+    sources: {
+      "carto-tiles": {
+        type: "raster",
+        tiles,
+        tileSize: 256,
+        maxzoom: 19,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/">CARTO</a>',
+      },
+    },
+    layers: [
+      {
+        id: "carto-tiles-layer",
+        type: "raster",
+        source: "carto-tiles",
+        minzoom: 0,
+        maxzoom: 19,
+      },
+    ],
+  });
+
+  const getMapStyle = (theme: "dark" | "satellite" | "neon_fog", key?: string): maplibregl.StyleSpecification | string => {
+    if (key) {
+      if (theme === "satellite") return `https://api.maptiler.com/maps/hybrid/style.json?key=${key}`;
+      if (theme === "neon_fog") return `https://api.maptiler.com/maps/backdrop-dark/style.json?key=${key}`;
+      return `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${key}`;
+    }
+
+    if (theme === "satellite") {
+      return createRasterStyle([
+        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+      ]);
+    }
+
+    if (theme === "neon_fog") {
+      return createRasterStyle([
+        "https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png",
+      ]);
+    }
+
+    // High performance dark theme with open CORS
+    return createRasterStyle([
+      "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+    ]);
+  };
+
   const handleThemeChange = (newTheme: "dark" | "satellite" | "neon_fog") => {
     setMapTheme(newTheme);
     if (!map.current) return;
-    let styleUrl: string | maplibregl.StyleSpecification = "";
-    if (newTheme === "satellite") {
-      styleUrl = apiKey
-        ? `https://api.maptiler.com/maps/hybrid/style.json?key=${apiKey}`
-        : "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
-    } else if (newTheme === "neon_fog") {
-      styleUrl = apiKey
-        ? `https://api.maptiler.com/maps/backdrop-dark/style.json?key=${apiKey}`
-        : "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
-    } else {
-      styleUrl = apiKey
-        ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${apiKey}`
-        : "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
-    }
 
-    map.current.setStyle(styleUrl);
+    const styleSpec = getMapStyle(newTheme, apiKey);
+    map.current.setStyle(styleSpec);
     map.current.once("style.load", () => {
       initHazardLayer();
       loadHazards();
@@ -364,33 +405,7 @@ export default function Map() {
       maxZoom: 19,
     });
 
-    const defaultStyle: maplibregl.StyleSpecification | string = apiKey
-      ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${apiKey}`
-      : {
-        version: 8 as const,
-        sources: {
-          "osm-tiles": {
-            type: "raster",
-            tiles: [
-              "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            ],
-            tileSize: 256,
-            maxzoom: 19,
-            attribution: "&copy; OpenStreetMap Contributors",
-          },
-        },
-        layers: [
-          {
-            id: "osm-tiles-layer",
-            type: "raster",
-            source: "osm-tiles",
-            minzoom: 0,
-            maxzoom: 19,
-          },
-        ],
-      };
+    const defaultStyle = getMapStyle(mapTheme, apiKey);
 
     map.current.setStyle(defaultStyle, {
       transformStyle: (_prev, next) => ({
