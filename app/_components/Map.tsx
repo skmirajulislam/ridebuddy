@@ -326,57 +326,25 @@ export default function Map() {
     },
   });
 
-  const createRasterStyle = (tiles: string[]): maplibregl.StyleSpecification => ({
-    version: 8,
-    sources: {
-      "carto-tiles": {
-        type: "raster",
-        tiles,
-        tileSize: 256,
-        maxzoom: 19,
-        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>, &copy; <a href=\"https://carto.com/\">CARTO</a>",
-      },
-    },
-    layers: [
-      {
-        id: "carto-tiles-layer",
-        type: "raster",
-        source: "carto-tiles",
-        minzoom: 0,
-        maxzoom: 19,
-      },
-    ],
-  });
-
-  const getMapStyle = (theme: "dark" | "satellite" | "neon_fog", key?: string): maplibregl.StyleSpecification | string => {
-    if (key) {
-      if (theme === "satellite") return `https://api.maptiler.com/maps/hybrid/style.json?key=${key}`;
-      if (theme === "neon_fog") return `https://api.maptiler.com/maps/backdrop-dark/style.json?key=${key}`;
-      return `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${key}`;
-    }
-
-    if (theme === "satellite") {
-      return createRasterStyle([
-        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-      ]);
-    }
-
-    // High performance dark theme with open CORS
-    return createRasterStyle([
-      "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-    ]);
-  };
-
   const handleThemeChange = (newTheme: "dark" | "satellite" | "neon_fog") => {
     setMapTheme(newTheme);
     if (!map.current) return;
+    let styleUrl: string | maplibregl.StyleSpecification = "";
+    if (newTheme === "satellite") {
+      styleUrl = apiKey
+        ? `https://api.maptiler.com/maps/hybrid/style.json?key=${apiKey}`
+        : "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
+    } else if (newTheme === "neon_fog") {
+      styleUrl = apiKey
+        ? `https://api.maptiler.com/maps/backdrop-dark/style.json?key=${apiKey}`
+        : "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
+    } else {
+      styleUrl = apiKey
+        ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${apiKey}`
+        : "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
+    }
 
-    const styleSpec = getMapStyle(newTheme, apiKey);
-    map.current.setStyle(styleSpec);
+    map.current.setStyle(styleUrl);
     map.current.once("style.load", () => {
       initHazardLayer();
       loadHazards();
@@ -396,7 +364,33 @@ export default function Map() {
       maxZoom: 19,
     });
 
-    const defaultStyle = getMapStyle(mapTheme, apiKey);
+    const defaultStyle: maplibregl.StyleSpecification | string = apiKey
+      ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${apiKey}`
+      : {
+        version: 8 as const,
+        sources: {
+          "osm-tiles": {
+            type: "raster",
+            tiles: [
+              "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ],
+            tileSize: 256,
+            maxzoom: 19,
+            attribution: "&copy; OpenStreetMap Contributors",
+          },
+        },
+        layers: [
+          {
+            id: "osm-tiles-layer",
+            type: "raster",
+            source: "osm-tiles",
+            minzoom: 0,
+            maxzoom: 19,
+          },
+        ],
+      };
 
     map.current.setStyle(defaultStyle, {
       transformStyle: (_prev, next) => ({
@@ -427,7 +421,7 @@ export default function Map() {
     map.current.on("click", (e) => {
       const target = mapPickTargetRef.current;
       if (!target) return;
-      
+
       const { lng, lat } = e.lngLat;
       handleMapClick(lng, lat, target);
     });
@@ -654,7 +648,7 @@ export default function Map() {
     if (!userMarker.current) {
       const el = document.createElement("div");
       el.className = navigation.isActive ? "user-location-navigation" : "user-location-dot";
-      
+
       if (navigation.isActive) {
         // Navigation mode: directional arrow
         el.innerHTML = `
@@ -689,7 +683,7 @@ export default function Map() {
           <div class="user-location-center"></div>
         `;
       }
-      
+
       userMarker.current = new maplibregl.Marker({ element: el, anchor: "center", rotationAlignment: "map" })
         .setLngLat(lnglat)
         .addTo(map.current);
@@ -702,12 +696,12 @@ export default function Map() {
       }
     } else {
       userMarker.current.setLngLat(lnglat);
-      
+
       // Update marker style if navigation state changed
       const el = userMarker.current.getElement();
       const currentClass = el.className;
       const shouldBeNav = navigation.isActive ? "user-location-navigation" : "user-location-dot";
-      
+
       if (currentClass !== shouldBeNav) {
         el.className = shouldBeNav;
         if (navigation.isActive) {
@@ -1068,10 +1062,10 @@ export default function Map() {
   // ── Handle Route Selection ────────────────────────────────────────────────
   const handleRouteSelection = useCallback((index: number) => {
     if (!allRoutesData || !map.current) return;
-    
+
     setSelectedRouteIndex(index);
     const selectedRoute = allRoutesData.allRoutes[index];
-    
+
     // Update route info for the selected route
     const selectedAnalysis = allRoutesData.routeAnalyses?.[index];
     setRouteInfo({
@@ -1261,7 +1255,7 @@ export default function Map() {
   };
 
   // ── Navigation Functions ──────────────────────────────────────────────────
-  
+
   // Start navigation mode
   const startNavigation = useCallback(() => {
     if (!user) {
@@ -1271,7 +1265,7 @@ export default function Map() {
     }
 
     if (!allRoutesData || !end) return;
-    
+
     const selectedRoute = allRoutesData.allRoutes[selectedRouteIndex];
     if (!selectedRoute.legs || selectedRoute.legs.length === 0) {
       setWarning("Navigation data unavailable for this route");
@@ -1388,12 +1382,12 @@ export default function Map() {
 
     const currentPos = turf.point([lng, lat]);
     const currentStep = navigation.steps[navigation.currentStepIndex];
-    
+
     // Calculate distance to next maneuver
     const maneuverPoint = currentStep?.maneuver.location;
     if (maneuverPoint) {
       const distToManeuver = turf.distance(currentPos, turf.point(maneuverPoint), { units: "meters" });
-      
+
       setNavigation(prev => ({
         ...prev,
         distanceToNextTurn: distToManeuver,
@@ -1404,7 +1398,7 @@ export default function Map() {
       if (nextDistance !== null && currentStep) {
         const instruction = formatTurnInstruction(currentStep, nextDistance, true);
         sendNotification("Navigation", instruction);
-        
+
         // Mark this distance as announced
         setNavigation(prev => ({
           ...prev,
@@ -1429,7 +1423,7 @@ export default function Map() {
       if (nearbyNavHazard) {
         const hazardId = String(
           nearbyNavHazard.id ??
-            `${nearbyNavHazard.type}-${nearbyNavHazard.lat}-${nearbyNavHazard.lng}`
+          `${nearbyNavHazard.type}-${nearbyNavHazard.lat}-${nearbyNavHazard.lng}`
         );
         const hazardDistance = Math.round(haversineDistance(lat, lng, nearbyNavHazard.lat, nearbyNavHazard.lng));
         const formattedType = String(nearbyNavHazard.type ?? "hazard").charAt(0).toUpperCase() + String(nearbyNavHazard.type ?? "hazard").slice(1);
@@ -1458,14 +1452,14 @@ export default function Map() {
       // Move to next step if close enough (within 20m)
       if (distToManeuver < 20 && navigation.currentStepIndex < navigation.steps.length - 1) {
         const nextStep = navigation.steps[navigation.currentStepIndex + 1];
-        
+
         setNavigation(prev => ({
           ...prev,
           currentStepIndex: prev.currentStepIndex + 1,
           distanceToNextTurn: nextStep?.distance || 0,
           announcedDistances: new Set(), // Reset for next turn
         }));
-        
+
         // Announce next instruction
         if (nextStep) {
           const nextInstruction = formatTurnInstruction(nextStep, nextStep.distance, false);
@@ -1482,7 +1476,7 @@ export default function Map() {
     const currentPos = turf.point([lng, lat]);
     const routeLine = turf.lineString(navigation.routeCoordinates);
     const snapped = turf.nearestPointOnLine(routeLine, currentPos);
-    
+
     // Calculate perpendicular distance from route
     const distanceFromRoute = turf.distance(currentPos, snapped, { units: "meters" });
 
@@ -1515,7 +1509,7 @@ export default function Map() {
       const from = turf.point([lastPositionRef.current.lng, lastPositionRef.current.lat]);
       const to = currentPos;
       const calculatedBearing = turf.bearing(from, to);
-      
+
       // Only update bearing if movement is significant (reduces jitter)
       const distance = turf.distance(from, to, { units: "meters" });
       if (distance > 3) { // Only update if moved more than 3 meters
@@ -1528,17 +1522,17 @@ export default function Map() {
     // Update user marker with smooth animation and rotation
     if (userMarker.current && map.current) {
       const element = userMarker.current.getElement();
-      
+
       // Rotate the arrow to match bearing (bearing is relative to north, 0° = north)
       const arrow = element.querySelector('.user-location-arrow');
       if (arrow) {
         (arrow as HTMLElement).style.transform = `rotate(${newBearing}deg)`;
         (arrow as HTMLElement).style.transition = 'transform 0.3s ease-out';
       }
-      
+
       // Animate to new position
       userMarker.current.setLngLat([lng, lat]);
-      
+
       // Center map on user (follow mode) with rotation
       map.current.easeTo({
         center: [lng, lat],
@@ -1551,7 +1545,7 @@ export default function Map() {
     if (navigation.isActive) {
       updateRouteProgress(lng, lat);
     }
-    
+
     // Check if off-route
     if (navigation.isActive) {
       checkDeviation(lng, lat);
@@ -1569,15 +1563,15 @@ export default function Map() {
       const res = await fetch(
         `${API_URL}/api/route?from=${lng},${lat}&to=${end[0]},${end[1]}`
       );
-      
+
       if (!res.ok) throw new Error("Reroute failed");
 
       const data = await res.json();
-      
+
       // Update route with new data
       setAllRoutesData(data);
       setSelectedRouteIndex(0);
-      
+
       // Restart navigation with new route
       const newRoute = data.allRoutes[0];
       if (newRoute.legs && newRoute.legs.length > 0) {
@@ -1708,8 +1702,8 @@ export default function Map() {
       <WarningBanner message={warning} onDismiss={() => setWarning(null)} />
 
       {/* ── Search Panel (Collapsible Dropdown / Popup) ──────────────────── */}
-      <div 
-        className="search-panel" 
+      <div
+        className="search-panel"
         style={{
           ...(warning ? { top: 60 } : {}),
           transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -1994,8 +1988,8 @@ export default function Map() {
       {/* ── Map Container ──────────────────────────────────────────────── */}
       <div
         ref={mapContainer}
-        style={{ 
-          width: "100%", 
+        style={{
+          width: "100%",
           height: "100vh",
           cursor: mapPickTarget ? "crosshair" : "default"
         }}

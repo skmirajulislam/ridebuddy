@@ -15,7 +15,7 @@ export default function WeatherRadarLayer({ map, enabled }: WeatherRadarLayerPro
 
     if (enabled) {
       try {
-        // 100% Dynamic: Fetches live Doppler satellite/radar frames from RainViewer API
+        // 100% Dynamic: Fetches latest real-time Doppler radar frames from RainViewer API
         const res = await fetch("https://api.rainviewer.com/public/weather-maps.json", {
           cache: "no-store",
         });
@@ -23,11 +23,12 @@ export default function WeatherRadarLayer({ map, enabled }: WeatherRadarLayerPro
         const radarFrames = data?.radar?.past || [];
         if (radarFrames.length === 0) return;
 
-        // Get the latest real-time frame path (e.g., /v2/radar/1724160000/256/...)
+        // Get the latest real-time frame path
         const latestFrame = radarFrames[radarFrames.length - 1];
         const timePath = latestFrame.path;
         const host = data.host || "https://tilecache.rainviewer.com";
-        const tileUrl = `${host}${timePath}/256/{z}/{x}/{y}/2/1_1.png`;
+        // 512px tiles provide crisp high-DPI Doppler clouds
+        const tileUrl = `${host}${timePath}/512/{z}/{x}/{y}/2/1_1.png`;
 
         if (map.getLayer("rainviewer-radar-layer")) {
           map.removeLayer("rainviewer-radar-layer");
@@ -36,13 +37,14 @@ export default function WeatherRadarLayer({ map, enabled }: WeatherRadarLayerPro
           map.removeSource("rainviewer-radar");
         }
 
-        // maxzoom: 12 ensures MapLibre automatically overzooms/scales Doppler tiles
-        // at street-level zooms (13-19) with ZERO "Zoom Level Not Supported" tile artifacts
+        // maxzoom: 6 with 512px tiles (or maxzoom: 7 for 256px) is the Doppler radar native limit.
+        // MapLibre GL automatically overzooms and bilinearly interpolates tiles for zooms 7-19,
+        // preventing RainViewer from serving the "Zoom Level Not Supported" placeholder image.
         map.addSource("rainviewer-radar", {
           type: "raster",
           tiles: [tileUrl],
-          tileSize: 256,
-          maxzoom: 12,
+          tileSize: 512,
+          maxzoom: 6,
           attribution: "Live Rain Radar &copy; RainViewer / IMD",
         });
 
@@ -55,8 +57,9 @@ export default function WeatherRadarLayer({ map, enabled }: WeatherRadarLayerPro
             source: "rainviewer-radar",
             minzoom: 0,
             paint: {
-              "raster-opacity": 0.65,
-              "raster-fade-duration": 300,
+              "raster-opacity": 0.75,
+              "raster-resampling": "linear",
+              "raster-fade-duration": 250,
             },
           },
           beforeLayer
