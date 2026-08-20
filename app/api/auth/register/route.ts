@@ -6,7 +6,8 @@ import { generateUniqueHandle } from "@/lib/utils/handle";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name = "", email = "", password = "" } = body;
+    const { name = "", email = "", password = "", city = "Kolkata" } = body;
+    const cleanCity = String(city).trim() || "Kolkata";
 
     if (!email || !password) {
       return NextResponse.json(
@@ -45,10 +46,10 @@ export async function POST(req: NextRequest) {
     const handle = await generateUniqueHandle(displayName);
 
     const result = await pool.query(
-      `INSERT INTO users (name, email, password_hash, handle, created_at, role, hobbies)
-       VALUES ($1, $2, $3, $4, NOW(), 'user', '{}')
-       RETURNING id, name, email, role, handle, avatar_url, bio, hobbies`,
-      [displayName, cleanEmail, passwordHash, handle]
+      `INSERT INTO users (name, email, password_hash, handle, city, karma, badges, created_at, role, hobbies)
+       VALUES ($1, $2, $3, $4, $5, 50, ARRAY['Community Pioneer']::TEXT[], NOW(), 'user', '{}')
+       RETURNING id, name, email, role, handle, city, karma, badges, avatar_url, bio, hobbies, emergency_contact`,
+      [displayName, cleanEmail, passwordHash, handle, cleanCity]
     );
 
     const user = result.rows[0];
@@ -63,9 +64,13 @@ export async function POST(req: NextRequest) {
           email: user.email,
           role: user.role || "user",
           handle: user.handle,
+          city: user.city || "Kolkata",
+          karma: user.karma || 50,
+          badges: Array.isArray(user.badges) ? user.badges : ["Community Pioneer"],
           avatar_url: user.avatar_url || null,
           bio: user.bio || null,
           hobbies: Array.isArray(user.hobbies) ? user.hobbies : [],
+          emergency_contact: user.emergency_contact || null,
         },
       },
       { status: 201 }

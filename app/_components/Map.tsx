@@ -11,6 +11,7 @@ import { useUserLocation } from "../_hooks/useUserLocation";
 import { useNotifications } from "../_hooks/useNotifications";
 import { useHazardCache, type CachedHazard } from "../_hooks/useHazardCache";
 import { useAuth } from "../_hooks/useAuth";
+import { useVoiceAssistant } from "../_hooks/useVoiceAssistant";
 
 import ReportButton from "./ReportButton";
 import BottomSheet from "./BottomSheet";
@@ -21,6 +22,14 @@ import WarningBanner from "./WarningBanner";
 import AuthModal from "./AuthModal";
 import ProfileModal from "./ProfileModal";
 import ContributorCard from "./ContributorCard";
+import VoiceAssistantHUD from "./VoiceAssistantHUD";
+import VerificationRadarPrompt from "./VerificationRadarPrompt";
+import WeatherRadarLayer from "./WeatherRadarLayer";
+import SquadModal from "./SquadModal";
+import LeaderboardModal from "./LeaderboardModal";
+import EmergencySOSModal from "./EmergencySOSModal";
+import OfflineMapPackModal from "./OfflineMapPackModal";
+import type { SquadDetails } from "@/lib/services/squad.service";
 
 import {
   Shield,
@@ -32,6 +41,12 @@ import {
   ChevronDown,
   ArrowLeft,
   RotateCcw,
+  Users,
+  CloudRain,
+  Trophy,
+  AlertOctagon,
+  DownloadCloud,
+  Layers,
 } from "lucide-react";
 
 import {
@@ -166,6 +181,21 @@ export default function Map() {
   const [mapPickTarget, setMapPickTarget] = useState<"from" | "to" | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [squadModalOpen, setSquadModalOpen] = useState(false);
+  const [activeSquad, setActiveSquad] = useState<SquadDetails | null>(null);
+  const [leaderboardModalOpen, setLeaderboardModalOpen] = useState(false);
+  const [sosModalOpen, setSosModalOpen] = useState(false);
+  const [offlineModalOpen, setOfflineModalOpen] = useState(false);
+  const [weatherRadarEnabled, setWeatherRadarEnabled] = useState(false);
+  const [mapTheme, setMapTheme] = useState<"dark" | "satellite" | "neon_fog">("dark");
+  const [verificationPromptHazard, setVerificationPromptHazard] = useState<{
+    hazard: CachedHazard;
+    distance: number;
+  } | null>(null);
+
+  const verifiedHazardIdsRef = useRef<Set<number>>(new Set());
+  const squadMarkersRef = useRef<globalThis.Map<number, maplibregl.Marker>>(new globalThis.Map());
+
   const [isSearchOpen, setIsSearchOpen] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -245,6 +275,115 @@ export default function Map() {
   const { getCache, setCache } = useHazardCache();
   const { user, idToken } = useAuth();
 
+  // ── Voice Assistant Integration ──────────────────────────────────────────
+  const {
+    isListening,
+    isSpeaking,
+    transcript,
+    voiceEnabled,
+    toggleListening,
+    setVoiceEnabled,
+    speak,
+  } = useVoiceAssistant({
+    onVoiceReport: async (hazardType) => {
+      if (!position) {
+        speak("GPS location unavailable for voice report.");
+        return;
+      }
+      if (!user) {
+        speak("Please sign in to report hazards.");
+        setAuthModalOpen(true);
+        return;
+      }
+      try {
+        const res = await fetch(`${API_URL}/api/hazards`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: idToken ? `Bearer ${idToken}` : "",
+          },
+          body: JSON.stringify({
+            type: hazardType,
+            lat: position.lat,
+            lng: position.lng,
+            severity: 2,
+            confidence: 0.95,
+          }),
+        });
+        if (res.ok) {
+          loadHazards();
+          toast.success(`Voice Report logged: ${hazardType}`, { icon: "🎙️" });
+        }
+      } catch (e) {
+        console.warn("Voice report error:", e);
+      }
+    },
+    onVoiceCommand: (cmd) => {
+      if (cmd === "stop_navigation") {
+        setNavigation((prev) => ({ ...prev, isActive: false, steps: [] }));
+        toast.info("Navigation ended");
+      }
+    },
+  });
+
+  const createRasterStyle = (tiles: string[]): maplibregl.StyleSpecification => ({
+    version: 8,
+    sources: {
+      "carto-tiles": {
+        type: "raster",
+        tiles,
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>, &copy; <a href=\"https://carto.com/\">CARTO</a>",
+      },
+    },
+    layers: [
+      {
+        id: "carto-tiles-layer",
+        type: "raster",
+        source: "carto-tiles",
+        minzoom: 0,
+        maxzoom: 19,
+      },
+    ],
+  });
+
+  const getMapStyle = (theme: "dark" | "satellite" | "neon_fog", key?: string): maplibregl.StyleSpecification | string => {
+    if (key) {
+      if (theme === "satellite") return `https://api.maptiler.com/maps/hybrid/style.json?key=${key}`;
+      if (theme === "neon_fog") return `https://api.maptiler.com/maps/backdrop-dark/style.json?key=${key}`;
+      return `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${key}`;
+    }
+
+    if (theme === "satellite") {
+      return createRasterStyle([
+        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+      ]);
+    }
+
+    // High performance dark theme with open CORS
+    return createRasterStyle([
+      "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+    ]);
+  };
+
+  const handleThemeChange = (newTheme: "dark" | "satellite" | "neon_fog") => {
+    setMapTheme(newTheme);
+    if (!map.current) return;
+
+    const styleSpec = getMapStyle(newTheme, apiKey);
+    map.current.setStyle(styleSpec);
+    map.current.once("style.load", () => {
+      initHazardLayer();
+      loadHazards();
+    });
+    toast.success(`Switched map style to ${newTheme === "neon_fog" ? "Neon Fog HUD" : newTheme.toUpperCase()}`);
+  };
+
   // ── Map Init ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -257,33 +396,7 @@ export default function Map() {
       maxZoom: 19,
     });
 
-    const defaultStyle: maplibregl.StyleSpecification | string = apiKey
-      ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${apiKey}`
-      : {
-          version: 8 as const,
-          sources: {
-            "osm-tiles": {
-              type: "raster",
-              tiles: [
-                "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              ],
-              tileSize: 256,
-              maxzoom: 19,
-              attribution: "&copy; OpenStreetMap Contributors",
-            },
-          },
-          layers: [
-            {
-              id: "osm-tiles-layer",
-              type: "raster",
-              source: "osm-tiles",
-              minzoom: 0,
-              maxzoom: 19,
-            },
-          ],
-        };
+    const defaultStyle = getMapStyle(mapTheme, apiKey);
 
     map.current.setStyle(defaultStyle, {
       transformStyle: (_prev, next) => ({
@@ -656,8 +769,97 @@ export default function Map() {
 
       setWarning(alertMsg);
       sendNotification("Hazard Alert", alertMsg);
+      speak(alertMsg, true);
     }
-  }, [position, isMapLoaded, hazards, sendNotification, navigation.isActive]);
+
+    // ── Community Verification Prompt Trigger (within 35m) ─────────────────
+    const verificationCandidate = hazards.find(
+      (h) =>
+        !verifiedHazardIdsRef.current.has(h.id) &&
+        haversineDistance(lat, lng, h.lat, h.lng) <= 35
+    );
+
+    if (verificationCandidate && !verificationPromptHazard) {
+      const dist = haversineDistance(lat, lng, verificationCandidate.lat, verificationCandidate.lng);
+      setVerificationPromptHazard({ hazard: verificationCandidate, distance: dist });
+      verifiedHazardIdsRef.current.add(verificationCandidate.id);
+    }
+  }, [position, isMapLoaded, hazards, sendNotification, navigation.isActive, speak, verificationPromptHazard]);
+
+  // ── Squad Convoy GPS Heartbeat & Marker Sync ──────────────────────────────
+  useEffect(() => {
+    if (!activeSquad || !position || !idToken) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/squads/${activeSquad.code}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            lat: position.lat,
+            lng: position.lng,
+            speed: position.speed ? position.speed * 3.6 : 0,
+            heading: position.heading || 0,
+          }),
+        });
+
+        if (res.ok) {
+          const updated: SquadDetails = await res.json();
+          setActiveSquad(updated);
+
+          // Update squad markers on map
+          if (map.current) {
+            const currentMemberIds = new Set<number>();
+
+            for (const member of updated.members || []) {
+              if (member.user_id === user?.id || member.lat == null || member.lng == null) continue;
+              currentMemberIds.add(member.user_id);
+
+              let marker = squadMarkersRef.current.get(member.user_id);
+              if (!marker) {
+                const el = document.createElement("div");
+                el.className = "squad-convoy-marker";
+                el.innerHTML = `
+                  <div style="background: rgba(14, 165, 233, 0.9); border: 2px solid #38bdf8; border-radius: 999px; padding: 3px 8px; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 0 12px rgba(56, 189, 248, 0.6); display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                    <span>🏍️ ${member.user_name.split(" ")[0]}</span>
+                    <span style="font-size: 9px; opacity: 0.85; background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 4px;">${Math.round(member.speed || 0)}km/h</span>
+                  </div>
+                `;
+                marker = new maplibregl.Marker({ element: el })
+                  .setLngLat([member.lng, member.lat])
+                  .addTo(map.current);
+                squadMarkersRef.current.set(member.user_id, marker);
+              } else {
+                marker.setLngLat([member.lng, member.lat]);
+              }
+            }
+
+            // Cleanup departed members
+            for (const [id, marker] of squadMarkersRef.current.entries()) {
+              if (!currentMemberIds.has(id)) {
+                marker.remove();
+                squadMarkersRef.current.delete(id);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Squad heartbeat notice:", e);
+      }
+    }, 4000);
+
+    const markersMap = squadMarkersRef.current;
+    return () => {
+      clearInterval(interval);
+      for (const marker of markersMap.values()) {
+        marker.remove();
+      }
+      markersMap.clear();
+    };
+  }, [activeSquad, position, idToken, user?.id]);
 
   // Sync initial GPS location into Start location
   useEffect(() => {
@@ -1848,6 +2050,206 @@ export default function Map() {
         />
       )}
 
+      {/* ── Weather Radar Precipitation Overlay ───────────────────────── */}
+      <WeatherRadarLayer map={map.current} enabled={weatherRadarEnabled} />
+
+      {/* ── Community Verification Proximity Prompt ────────────────────── */}
+      {verificationPromptHazard && (
+        <VerificationRadarPrompt
+          hazard={verificationPromptHazard.hazard}
+          distanceMeters={verificationPromptHazard.distance}
+          onDismiss={() => setVerificationPromptHazard(null)}
+          onVerified={(hazardId, isResolved) => {
+            setVerificationPromptHazard(null);
+            if (isResolved) {
+              setHazards((prev) => prev.filter((h) => h.id !== hazardId));
+            }
+            loadHazards();
+          }}
+        />
+      )}
+
+      {/* ── Top Floating Action HUD Bar (Voice, Squad, Weather, Leaderboard, SOS, Themes) ── */}
+      {mounted && (
+        <div
+          style={{
+            position: "absolute",
+            top: "16px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "rgba(15, 23, 42, 0.9)",
+            backdropFilter: "blur(16px)",
+            padding: "6px 12px",
+            borderRadius: "999px",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+            maxWidth: "92vw",
+            overflowX: "auto",
+          }}
+          className="no-scrollbar"
+        >
+          {/* Voice Assistant HUD */}
+          <VoiceAssistantHUD
+            isListening={isListening}
+            isSpeaking={isSpeaking}
+            transcript={transcript}
+            voiceEnabled={voiceEnabled}
+            onToggleListening={toggleListening}
+            onToggleMute={() => setVoiceEnabled(!voiceEnabled)}
+          />
+
+          <div style={{ width: "1px", height: "24px", background: "rgba(255, 255, 255, 0.15)" }} />
+
+          {/* Squad Convoy Button */}
+          <button
+            onClick={() => setSquadModalOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 12px",
+              borderRadius: "999px",
+              border: activeSquad ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.1)",
+              background: activeSquad ? "rgba(56, 189, 248, 0.2)" : "rgba(255, 255, 255, 0.05)",
+              color: activeSquad ? "#38bdf8" : "#94a3b8",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+            title="Rider Squads & Live Convoy Mode"
+          >
+            <Users className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">{activeSquad ? activeSquad.name : "Squad"}</span>
+            {activeSquad && (
+              <span style={{ fontSize: "10px", background: "#38bdf8", color: "#0f172a", padding: "1px 5px", borderRadius: "999px", fontWeight: 800 }}>
+                {activeSquad.members?.length || 1}
+              </span>
+            )}
+          </button>
+
+          {/* Monsoon Weather Radar Toggle */}
+          <button
+            onClick={() => setWeatherRadarEnabled(!weatherRadarEnabled)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 12px",
+              borderRadius: "999px",
+              border: weatherRadarEnabled ? "1px solid #60a5fa" : "1px solid rgba(255, 255, 255, 0.1)",
+              background: weatherRadarEnabled ? "rgba(96, 165, 250, 0.25)" : "rgba(255, 255, 255, 0.05)",
+              color: weatherRadarEnabled ? "#93c5fd" : "#94a3b8",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+            title="Toggle Live Rain & Monsoon Weather Radar"
+          >
+            <CloudRain className={`w-3.5 h-3.5 ${weatherRadarEnabled ? "text-blue-400 animate-bounce" : "text-slate-400"}`} />
+            <span className="hidden sm:inline">Rain Radar</span>
+          </button>
+
+          {/* City Leaderboard Button */}
+          <button
+            onClick={() => setLeaderboardModalOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 12px",
+              borderRadius: "999px",
+              border: "1px solid rgba(245, 158, 11, 0.3)",
+              background: "rgba(245, 158, 11, 0.1)",
+              color: "#fbbf24",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+            title="City Safety Leaderboard & Karma Champions"
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Ranks</span>
+          </button>
+
+          {/* Offline Map Pack Button */}
+          <button
+            onClick={() => setOfflineModalOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 10px",
+              borderRadius: "999px",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "rgba(255, 255, 255, 0.05)",
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+            title="Download Offline Highway Pack"
+          >
+            <DownloadCloud className="w-3.5 h-3.5 text-slate-300" />
+          </button>
+
+          {/* Map Theme Toggle (Dark / Satellite / Neon Fog HUD) */}
+          <button
+            onClick={() => {
+              const nextTheme = mapTheme === "dark" ? "satellite" : mapTheme === "satellite" ? "neon_fog" : "dark";
+              handleThemeChange(nextTheme);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "6px 10px",
+              borderRadius: "999px",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "rgba(255, 255, 255, 0.05)",
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+            title={`Current Style: ${mapTheme.toUpperCase()}. Click to switch style.`}
+          >
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden md:inline uppercase text-[10px] font-bold">{mapTheme}</span>
+          </button>
+
+          {/* 1-Tap Emergency SOS (Red Pulsing) */}
+          <button
+            onClick={() => setSosModalOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 14px",
+              borderRadius: "999px",
+              border: "1.5px solid #ef4444",
+              background: "linear-gradient(135deg, #dc2626, #991b1b)",
+              color: "#ffffff",
+              fontSize: "12px",
+              fontWeight: 900,
+              cursor: "pointer",
+              boxShadow: "0 0 14px rgba(239, 68, 68, 0.6)",
+              whiteSpace: "nowrap",
+            }}
+            title="1-Tap Emergency SOS coordinates & siren alarm"
+          >
+            <AlertOctagon className="w-3.5 h-3.5 animate-pulse" />
+            <span>SOS</span>
+          </button>
+        </div>
+      )}
+
       {/* ── Profile / Dashboard Trigger (top-right) ──────────────────── */}
       {mounted && user ? (
         <div style={{ position: "absolute", top: "16px", right: "60px", zIndex: 10, display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1930,7 +2332,42 @@ export default function Map() {
         </button>
       ) : null}
 
-      {/* ── Profile Modal (View & Edit Profile / Hobbies) ────────────────── */}
+      {/* ── Squad Convoy Modal ─────────────────────────────────────────── */}
+      <SquadModal
+        isOpen={squadModalOpen}
+        onClose={() => setSquadModalOpen(false)}
+        activeSquad={activeSquad}
+        onSquadUpdated={(squad) => setActiveSquad(squad)}
+      />
+
+      {/* ── City Safety Leaderboard Modal ──────────────────────────────── */}
+      <LeaderboardModal
+        isOpen={leaderboardModalOpen}
+        onClose={() => setLeaderboardModalOpen(false)}
+        userCity={user?.city || "Kolkata"}
+        onSelectUser={(userHandle) => {
+          setLeaderboardModalOpen(false);
+          setContributorModal({ isOpen: true, handleOrId: userHandle });
+        }}
+      />
+
+      {/* ── Emergency SOS Modal ────────────────────────────────────────── */}
+      <EmergencySOSModal
+        isOpen={sosModalOpen}
+        onClose={() => setSosModalOpen(false)}
+        lat={position?.lat ?? null}
+        lng={position?.lng ?? null}
+        emergencyContact={user?.emergency_contact || null}
+      />
+
+      {/* ── Offline Highway Map Pack Modal ─────────────────────────────── */}
+      <OfflineMapPackModal
+        isOpen={offlineModalOpen}
+        onClose={() => setOfflineModalOpen(false)}
+        currentHazards={hazards}
+      />
+
+      {/* ── Profile Modal (View & Edit Profile / Hobbies / City / SOS) ───── */}
       <ProfileModal
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}

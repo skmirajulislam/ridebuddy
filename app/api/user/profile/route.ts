@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, avatar_url, bio, hobbies } = body;
+    const { name, city, avatar_url, bio, hobbies, emergency_contact } = body;
 
     // Validation
     if (name !== undefined && typeof name !== "string") {
@@ -46,6 +46,9 @@ export async function PATCH(req: NextRequest) {
     }
     if (name !== undefined && name.trim().length === 0) {
       return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
+    }
+    if (city !== undefined && typeof city !== "string") {
+      return NextResponse.json({ error: "City must be a string" }, { status: 400 });
     }
     if (bio !== undefined && typeof bio === "string" && bio.length > 500) {
       return NextResponse.json({ error: "Bio cannot exceed 500 characters" }, { status: 400 });
@@ -63,9 +66,11 @@ export async function PATCH(req: NextRequest) {
 
     const updated = await updateUserProfile(authUser.userId, {
       name: name !== undefined ? name.trim() : undefined,
+      city: city !== undefined ? city.trim() : undefined,
       avatar_url: avatar_url !== undefined ? avatar_url : undefined,
       bio: bio !== undefined ? bio.trim() : undefined,
       hobbies: cleanHobbies,
+      emergency_contact: emergency_contact !== undefined ? (emergency_contact ? String(emergency_contact).trim() : null) : undefined,
     });
 
     if (!updated) {

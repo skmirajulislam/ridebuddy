@@ -6,7 +6,14 @@ const API_CACHE = `ridebuddy-api-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = ["/manifest.json", "/icons/icon.svg"];
 
-const TILE_ORIGINS = ["https://api.maptiler.com", "https://tile.openstreetmap.org"];
+const TILE_ORIGINS = [
+  "https://api.maptiler.com",
+  "https://tile.openstreetmap.org",
+  "https://basemaps.cartocdn.com",
+  "https://a.basemaps.cartocdn.com",
+  "https://b.basemaps.cartocdn.com",
+  "https://c.basemaps.cartocdn.com",
+];
 
 // ── Install ────────────────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {

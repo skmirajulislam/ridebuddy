@@ -362,6 +362,109 @@ export async function updateHazardStatus(
 }
 
 /**
+ * Community verification for hazard ("still_there" or "fixed")
+ */
+export async function verifyHazard(
+  hazardId: number,
+  userId: number,
+  voteType: "still_there" | "fixed"
+): Promise<{
+  success: boolean;
+  upvotes: number;
+  fixedVotes: number;
+  isResolved: boolean;
+  message: string;
+}> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Check existing verification
+    const existing = await client.query(
+      `SELECT id, vote_type FROM hazard_verifications WHERE hazard_id = $1 AND user_id = $2`,
+      [hazardId, userId]
+    );
+
+    if ((existing.rowCount ?? 0) > 0) {
+      await client.query("ROLLBACK");
+      return {
+        success: false,
+        upvotes: 0,
+        fixedVotes: 0,
+        isResolved: false,
+        message: "You have already verified this hazard report.",
+      };
+    }
+
+    // Insert verification
+    await client.query(
+      `INSERT INTO hazard_verifications (hazard_id, user_id, vote_type, created_at)
+       VALUES ($1, $2, $3, NOW())`,
+      [hazardId, userId, voteType]
+    );
+
+    // Update counts on hazard
+    let updateQuery = "";
+    if (voteType === "still_there") {
+      updateQuery = `UPDATE hazards SET upvotes_count = COALESCE(upvotes_count, 0) + 1 WHERE id = $1 RETURNING upvotes_count, fixed_votes_count, user_id, image_url`;
+    } else {
+      updateQuery = `UPDATE hazards SET fixed_votes_count = COALESCE(fixed_votes_count, 0) + 1 WHERE id = $1 RETURNING upvotes_count, fixed_votes_count, user_id, image_url`;
+    }
+
+    const updatedHazard = await client.query(updateQuery, [hazardId]);
+    const row = updatedHazard.rows[0];
+    const upvotes = Number(row?.upvotes_count || 0);
+    const fixedVotes = Number(row?.fixed_votes_count || 0);
+    const originalReporterId = row?.user_id;
+    const imageUrl = row?.image_url;
+
+    let isResolved = false;
+
+    // Auto-resolve if 3 or more community members vote 'fixed'
+    if (voteType === "fixed" && fixedVotes >= 3) {
+      await client.query(
+        `UPDATE hazards SET status = 'resolved', resolved_at = NOW(), resolved_by_user_id = $1 WHERE id = $2`,
+        [userId, hazardId]
+      );
+      isResolved = true;
+
+      // Clean up cloud storage image
+      if (imageUrl) {
+        deleteUploadThingFile(imageUrl).catch((e) =>
+          console.warn("[Hazard] Auto-prune image failed:", e)
+        );
+      }
+    }
+
+    // Award Karma to verifier (+10) and reporter (+5 if still active)
+    await client.query(`UPDATE users SET karma = COALESCE(karma, 50) + 10 WHERE id = $1`, [userId]);
+    if (originalReporterId && voteType === "still_there") {
+      await client.query(`UPDATE users SET karma = COALESCE(karma, 50) + 5 WHERE id = $1`, [originalReporterId]);
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      success: true,
+      upvotes,
+      fixedVotes,
+      isResolved,
+      message: isResolved
+        ? "Community verified! Hazard marked resolved & removed."
+        : voteType === "still_there"
+        ? "Thank you! Hazard confirmed active on radar (+10 Karma)."
+        : "Thank you! Resolution vote recorded (+10 Karma).",
+    };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("[Hazard] Verification error:", err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Get aggregate hazard statistics for Government operations
  */
 export async function getGovStats(): Promise<GovStats> {
@@ -375,3 +478,4 @@ export async function getGovStats(): Promise<GovStats> {
   `);
   return result.rows[0] ?? { total: "0", active: "0", in_progress: "0", resolved: "0" };
 }
+

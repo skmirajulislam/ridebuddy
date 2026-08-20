@@ -17,9 +17,13 @@ export interface AuthUser {
   email: string;
   role?: string;
   handle?: string;
+  city?: string;
+  karma?: number;
+  badges?: string[];
   avatar_url?: string | null;
   bio?: string | null;
   hobbies?: string[];
+  emergency_contact?: string | null;
 }
 
 interface AuthState {
@@ -27,7 +31,7 @@ interface AuthState {
   loading: boolean;
   idToken: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, city?: string) => Promise<void>;
   resetPassword: (email: string) => Promise<string>;
   signOut: () => void;
   updateUser: (updatedData: Partial<AuthUser>) => void;
@@ -150,13 +154,14 @@ export function useAuth(): AuthState {
     }
   };
 
-  const signUp = async (email: string, password: string, displayName: string) => {
+  const signUp = async (email: string, password: string, displayName: string, city?: string) => {
     setLoading(true);
     try {
       const data = await apiFetch("/api/auth/register", {
         email,
         password,
         name: displayName,
+        city: city || "Kolkata",
       });
       persist(data.token, data.user);
     } finally {

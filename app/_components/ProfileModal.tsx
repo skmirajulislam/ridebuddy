@@ -79,6 +79,10 @@ export default function ProfileModal({
   // Form fields
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
+  const [city, setCity] = useState("Kolkata");
+  const [karma, setKarma] = useState(50);
+  const [badges, setBadges] = useState<string[]>(["Community Pioneer"]);
+  const [emergencyContact, setEmergencyContact] = useState("");
   const [bio, setBio] = useState("");
   const [hobbies, setHobbies] = useState<string[]>([]);
   const [newHobbyInput, setNewHobbyInput] = useState("");
@@ -107,6 +111,10 @@ export default function ProfileModal({
         const data = await res.json();
         setName(data.name || "");
         setHandle(data.handle || "");
+        setCity(data.city || "Kolkata");
+        setKarma(Number(data.karma || 50));
+        setBadges(Array.isArray(data.badges) ? data.badges : ["Community Pioneer"]);
+        setEmergencyContact(data.emergency_contact || "");
         setBio(data.bio || "");
         setHobbies(Array.isArray(data.hobbies) ? data.hobbies : []);
         setAvatarUrl(data.avatar_url || null);
@@ -116,6 +124,10 @@ export default function ProfileModal({
         updateUser({
           name: data.name,
           handle: data.handle,
+          city: data.city,
+          karma: data.karma,
+          badges: data.badges,
+          emergency_contact: data.emergency_contact,
           avatar_url: data.avatar_url,
           bio: data.bio,
           hobbies: data.hobbies,
@@ -260,6 +272,8 @@ export default function ProfileModal({
         },
         body: JSON.stringify({
           name: name.trim(),
+          city: city.trim(),
+          emergency_contact: emergencyContact.trim(),
           avatar_url: finalAvatarUrl,
           bio: bio.trim(),
           hobbies,
@@ -274,6 +288,10 @@ export default function ProfileModal({
       const data = await res.json();
       setName(data.name);
       setHandle(data.handle);
+      setCity(data.city || "Kolkata");
+      setKarma(Number(data.karma || 50));
+      setBadges(Array.isArray(data.badges) ? data.badges : ["Community Pioneer"]);
+      setEmergencyContact(data.emergency_contact || "");
       setBio(data.bio || "");
       setHobbies(data.hobbies || []);
       setAvatarUrl(data.avatar_url);
@@ -284,6 +302,10 @@ export default function ProfileModal({
       updateUser({
         name: data.name,
         handle: data.handle,
+        city: data.city,
+        karma: data.karma,
+        badges: data.badges,
+        emergency_contact: data.emergency_contact,
         avatar_url: data.avatar_url,
         bio: data.bio,
         hobbies: data.hobbies,
@@ -550,15 +572,44 @@ export default function ProfileModal({
                   )}
                 </div>
 
-                {/* Achievement Badge */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "8px" }}>
-                  <Award className="w-4 h-4 text-amber-400" />
-                  <span style={{ fontSize: "12px", color: "#f59e0b", fontWeight: "600" }}>
-                    {achievementTitle}
-                  </span>
-                  <span style={{ fontSize: "12px", color: "#64748b" }}>•</span>
+                {/* City, Karma, and Achievement Badges */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      background: "rgba(245, 158, 11, 0.15)",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
+                      padding: "2px 8px",
+                      borderRadius: "999px",
+                    }}
+                  >
+                    <Award className="w-3.5 h-3.5 text-amber-400" />
+                    <span style={{ fontSize: "12px", color: "#f59e0b", fontWeight: "700" }}>
+                      {karma} Karma
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      background: "rgba(16, 185, 129, 0.15)",
+                      border: "1px solid rgba(16, 185, 129, 0.4)",
+                      padding: "2px 8px",
+                      borderRadius: "999px",
+                    }}
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                    <span style={{ fontSize: "12px", color: "#10b981", fontWeight: "600" }}>
+                      {city}
+                    </span>
+                  </div>
+
                   <span style={{ fontSize: "12px", color: "#94a3b8" }}>
-                    {totalReports} contributions
+                    • {achievementTitle} ({totalReports} reports)
                   </span>
                 </div>
               </div>
@@ -589,16 +640,64 @@ export default function ProfileModal({
             {/* Editable or Display Fields */}
             {isEditing ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
+                      Display Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter your name"
+                      maxLength={50}
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "12px",
+                        background: "rgba(15, 23, 42, 0.6)",
+                        border: "1px solid rgba(255, 255, 255, 0.12)",
+                        color: "#f8fafc",
+                        fontSize: "14px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
+                      Primary City / Region
+                    </label>
+                    <input
+                      type="text"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="e.g. Kolkata, Mumbai, Delhi"
+                      maxLength={50}
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "12px",
+                        background: "rgba(15, 23, 42, 0.6)",
+                        border: "1px solid rgba(255, 255, 255, 0.12)",
+                        color: "#f8fafc",
+                        fontSize: "14px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
-                    Display Name
+                    Emergency SOS Contact (Phone number for 1-Tap SOS SMS)
                   </label>
                   <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter your name"
-                    maxLength={50}
+                    type="tel"
+                    value={emergencyContact}
+                    onChange={(e) => setEmergencyContact(e.target.value)}
+                    placeholder="e.g. +91 9876543210 or 112"
+                    maxLength={20}
                     style={{
                       width: "100%",
                       padding: "10px 14px",
@@ -820,6 +919,42 @@ export default function ProfileModal({
                   </p>
                 </div>
 
+                {/* Safety Badges & Recognition */}
+                <div
+                  style={{
+                    padding: "14px 18px",
+                    background: "rgba(15, 23, 42, 0.6)",
+                    borderRadius: "16px",
+                    border: "1px solid rgba(245, 158, 11, 0.2)",
+                  }}
+                >
+                  <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                    Safety Achievements & Badges ({badges.length})
+                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {badges.map((b, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "4px 12px",
+                          borderRadius: "999px",
+                          background: "rgba(245, 158, 11, 0.15)",
+                          border: "1px solid rgba(245, 158, 11, 0.35)",
+                          color: "#fbbf24",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>{b}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Hobbies / Interests */}
                 <div
                   style={{
@@ -830,7 +965,7 @@ export default function ProfileModal({
                   }}
                 >
                   <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
-                    Interests & Badges
+                    Interests & Riding Tags
                   </span>
                   {hobbies.length > 0 ? (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
@@ -857,6 +992,31 @@ export default function ProfileModal({
                     </p>
                   )}
                 </div>
+
+                {/* Emergency Contact Notice */}
+                {emergencyContact && (
+                  <div
+                    style={{
+                      padding: "12px 16px",
+                      background: "rgba(239, 68, 68, 0.1)",
+                      borderRadius: "14px",
+                      border: "1px solid rgba(239, 68, 68, 0.25)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                    }}
+                  >
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <div>
+                      <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#f87171", textTransform: "uppercase" }}>
+                        1-Tap Emergency SOS Contact
+                      </span>
+                      <span style={{ fontSize: "13px", color: "#fca5a5", fontWeight: 600 }}>
+                        {emergencyContact}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
