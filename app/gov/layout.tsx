@@ -3,45 +3,40 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthContext } from "./_store/auth.store";
+import { AuthContext, useAuthContext } from "./_store/auth.store";
 import { authService, type AuthUser } from "./_services/auth";
 import Sidebar from "./_components/Sidebar";
 import "./gov.css";
 
 function GovLayoutContent({ children }: { children: React.ReactNode }) {
-  const [user] = useState<AuthUser | null>(() => authService.getUser());
-  const [isReady] = useState(true);
+  const { user, setUser } = useAuthContext();
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     const stored = authService.getUser();
-    if (pathname !== "/gov/login" && (!stored || stored.role !== "official")) {
-      router.replace("/gov/login");
+    if (stored && stored.role === "official") {
+      if (!user || user.id !== stored.id || user.token !== stored.token) {
+        setUser(stored);
+      }
+      setCheckingAuth(false);
+    } else {
+      if (user) {
+        setUser(null);
+      }
+      setCheckingAuth(false);
+      if (pathname !== "/gov/login") {
+        router.replace("/gov/login");
+      }
     }
-  }, [pathname, router]);
-
-  if (!isReady) {
-    return (
-      <div
-        className="gov-body-wrapper"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-        }}
-      >
-        <span className="spinner" />
-      </div>
-    );
-  }
+  }, [pathname, router, setUser, user]);
 
   if (pathname === "/gov/login") {
     return <div className="gov-body-wrapper">{children}</div>;
   }
 
-  if (!user || user.role !== "official") {
+  if (checkingAuth || !user || user.role !== "official") {
     return (
       <div
         className="gov-body-wrapper"

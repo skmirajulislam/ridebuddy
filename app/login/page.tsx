@@ -34,7 +34,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.replace("/");
+      if (user.role === "official") {
+        router.replace("/gov");
+      } else {
+        router.replace("/");
+      }
     }
   }, [user, router]);
 
@@ -58,7 +62,6 @@ export default function LoginPage() {
         router.replace("/");
       } else {
         await signIn(email, password);
-        router.replace("/");
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";

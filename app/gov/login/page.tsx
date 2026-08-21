@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Landmark, ArrowLeft, LogIn } from "lucide-react";
@@ -14,6 +14,14 @@ export default function GovLoginPage() {
   const [loading, setLoading] = useState(false);
   const { setUser } = useAuthContext();
   const router = useRouter();
+
+  useEffect(() => {
+    const user = authService.getUser();
+    if (user && user.role === "official") {
+      setUser(user);
+      router.replace("/gov");
+    }
+  }, [router, setUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

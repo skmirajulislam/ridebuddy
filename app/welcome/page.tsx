@@ -43,7 +43,10 @@ export default function WelcomePage() {
 
   React.useEffect(() => {
     setMounted(true);
-  }, []);
+    if (user?.role === "official") {
+      router.replace("/gov");
+    }
+  }, [user, router]);
 
   const openAuth = (mode: "signin" | "signup") => {
     setAuthMode(mode);
@@ -89,10 +92,17 @@ export default function WelcomePage() {
             <a href="#features" className="hover:text-cyan-400 transition-colors">
               Safety Arsenal
             </a>
-            <a href="#govops" className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 text-cyan-300">
-              <Building2 className="h-4 w-4" />
-              GovOps Portal
-            </a>
+            {mounted && user?.role === "official" ? (
+              <Link href="/gov" className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 text-cyan-300 font-semibold">
+                <Building2 className="h-4 w-4" />
+                GovOps Portal
+              </Link>
+            ) : (
+              <a href="#govops" className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 text-cyan-300">
+                <Building2 className="h-4 w-4" />
+                GovOps Portal
+              </a>
+            )}
             <a href="#faq" className="hover:text-cyan-400 transition-colors">
               FAQ
             </a>
@@ -547,7 +557,7 @@ export default function WelcomePage() {
                 </div>
 
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-center lg:justify-start">
-                  <Link href="/gov/login" className="w-full sm:w-auto">
+                  <Link href={mounted && user?.role === "official" ? "/gov" : "/gov/login"} className="w-full sm:w-auto">
                     <Button variant="gov" size="lg" className="w-full sm:w-auto h-13 px-8 text-base flex items-center justify-center gap-2">
                       <span>Access GovOps Operations Portal</span>
                       <ArrowRight className="h-5 w-5" />
@@ -717,7 +727,7 @@ export default function WelcomePage() {
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider">Government Portal</h4>
               <ul className="space-y-2 text-xs">
-                <li><Link href="/gov/login" className="hover:text-cyan-400 transition-colors">GovOps Portal Login</Link></li>
+                <li><Link href={mounted && user?.role === "official" ? "/gov" : "/gov/login"} className="hover:text-cyan-400 transition-colors">GovOps Portal {mounted && user?.role === "official" ? "Dashboard" : "Login"}</Link></li>
                 <li><Link href="/gov" className="hover:text-cyan-400 transition-colors">Executive Dashboard</Link></li>
                 <li><Link href="/gov/hazards" className="hover:text-cyan-400 transition-colors">Hazard Records Table</Link></li>
               </ul>

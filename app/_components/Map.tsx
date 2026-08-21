@@ -1759,7 +1759,7 @@ export default function Map() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <Link
-                href="/welcome"
+                href={user?.role === "official" ? "/gov" : "/welcome"}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -1774,10 +1774,10 @@ export default function Map() {
                   borderRadius: "999px",
                   transition: "all 0.15s ease",
                 }}
-                title="Return to Main Website"
+                title={user?.role === "official" ? "Return to GovOps Dashboard" : "Return to Main Website"}
               >
                 <ArrowLeft className="w-3 h-3" />
-                <span>Main</span>
+                <span>{user?.role === "official" ? "GovOps" : "Main"}</span>
               </Link>
 
               <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
