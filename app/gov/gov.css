@@ -158,11 +158,24 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 6px 8px;
+  margin: -4px -8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid transparent;
+}
+
+.sidebar__user:hover,
+.sidebar__user:focus-visible {
+  background: var(--gov-surface2);
+  border-color: rgba(0, 204, 255, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
 .sidebar__avatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: var(--gov-primary);
   color: #000;
@@ -172,6 +185,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+  border: 1.5px solid rgba(0, 204, 255, 0.4);
 }
 
 .sidebar__user-name {

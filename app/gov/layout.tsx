@@ -15,22 +15,32 @@ function GovLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const stored = authService.getUser();
-    if (stored && stored.role === "official") {
-      if (!user || user.id !== stored.id || user.token !== stored.token) {
+    const syncUser = () => {
+      const stored = authService.getUser();
+      if (stored && stored.role === "official") {
         setUser(stored);
-      }
-      setCheckingAuth(false);
-    } else {
-      if (user) {
+        setCheckingAuth(false);
+      } else {
         setUser(null);
+        setCheckingAuth(false);
+        if (pathname !== "/gov/login") {
+          router.replace("/gov/login");
+        }
       }
-      setCheckingAuth(false);
-      if (pathname !== "/gov/login") {
-        router.replace("/gov/login");
-      }
-    }
-  }, [pathname, router, setUser, user]);
+    };
+
+    syncUser();
+
+    window.addEventListener("rb_auth_state_changed", syncUser);
+    window.addEventListener("rb_auth_change", syncUser);
+    window.addEventListener("storage", syncUser);
+
+    return () => {
+      window.removeEventListener("rb_auth_state_changed", syncUser);
+      window.removeEventListener("rb_auth_change", syncUser);
+      window.removeEventListener("storage", syncUser);
+    };
+  }, [pathname, router, setUser]);
 
   if (pathname === "/gov/login") {
     return <div className="gov-body-wrapper">{children}</div>;

@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   Camera,
@@ -26,6 +28,10 @@ import {
   CheckCircle2,
   Clock,
   ShieldCheck,
+  Lock,
+  Landmark,
+  ExternalLink,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "../_hooks/useAuth";
@@ -43,7 +49,22 @@ const HAZARD_TYPE_ICONS: Record<string, { icon: LucideIcon; color: string; label
   others: { icon: MapPin, color: "#6366f1", label: "Other Hazard" },
 };
 
-const PRESET_HOBBIES = [
+const OFFICIAL_SPECIALIZATION_TAGS = [
+  "Road Hazard Inspector",
+  "Traffic Operations & Flow",
+  "PWD & Highway Engineering",
+  "Emergency Dispatch & SOS",
+  "Pothole Repair & Patchwork",
+  "Monsoon Drainage & Floods",
+  "Structural Safety & Bridges",
+  "Road Safety Auditor",
+  "Highway Patrol & Enforcement",
+  "Citizen Grievance Response",
+  "Traffic Signal & Lighting",
+  "Urban Infrastructure",
+];
+
+const CITIZEN_HOBBIES_TAGS = [
   "Highway Cruising",
   "Night Riding",
   "Motorcycling",
@@ -61,6 +82,8 @@ interface ProfileModalProps {
   onClose: () => void;
   onProfileUpdated?: () => void;
   initialTab?: "profile" | "contributions";
+  readOnly?: boolean;
+  readOnlyReason?: string;
 }
 
 export default function ProfileModal({
@@ -68,8 +91,11 @@ export default function ProfileModal({
   onClose,
   onProfileUpdated,
   initialTab = "profile",
+  readOnly = false,
+  readOnlyReason,
 }: ProfileModalProps) {
   const { user, idToken, updateUser } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "contributions">(initialTab);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -78,6 +104,8 @@ export default function ProfileModal({
 
   // Form fields
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("user");
   const [handle, setHandle] = useState("");
   const [city, setCity] = useState("Kolkata");
   const [karma, setKarma] = useState(50);
@@ -99,17 +127,38 @@ export default function ProfileModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const getEffectiveToken = (): string | null => {
+    if (idToken) return idToken;
+    if ((user as unknown as { token?: string })?.token) return (user as unknown as { token: string }).token;
+    if (typeof window !== "undefined") {
+      return (
+        localStorage.getItem("gov_token") ||
+        sessionStorage.getItem("gov_token") ||
+        localStorage.getItem("rb_token") ||
+        sessionStorage.getItem("rb_token")
+      );
+    }
+    return null;
+  };
+
   // Fetch latest profile from API when modal opens
   const fetchProfile = async () => {
-    if (!idToken) return;
+    const token = getEffectiveToken();
+    if (!token) return;
     setLoading(true);
     try {
       const res = await fetch("/api/user/profile", {
-        headers: { Authorization: `Bearer ${idToken}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setName(data.name || "");
+        setEmail(data.email || user?.email || "");
+        setRole(data.role || user?.role || "user");
         setHandle(data.handle || "");
         setCity(data.city || "Kolkata");
         setKarma(Number(data.karma || 50));
@@ -123,6 +172,8 @@ export default function ProfileModal({
 
         updateUser({
           name: data.name,
+          email: data.email,
+          role: data.role,
           handle: data.handle,
           city: data.city,
           karma: data.karma,
@@ -142,11 +193,12 @@ export default function ProfileModal({
 
   // Fetch user contributions
   const fetchContributions = async () => {
-    if (!idToken) return;
+    const token = getEffectiveToken();
+    if (!token) return;
     setLoadingContributions(true);
     try {
       const res = await fetch("/api/user/hazards", {
-        headers: { Authorization: `Bearer ${idToken}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -160,17 +212,54 @@ export default function ProfileModal({
   };
 
   useEffect(() => {
-    if (!isOpen || !idToken) return;
+    if (!isOpen) return;
     setActiveTab(initialTab);
+
+    // Initial pre-fill from user or stored session
+    let storedUser: {
+      name?: string;
+      email?: string;
+      role?: string;
+      handle?: string;
+      city?: string;
+      avatar_url?: string | null;
+      bio?: string | null;
+      hobbies?: string[];
+      emergency_contact?: string | null;
+    } | null = user;
+
+    if (!storedUser && typeof window !== "undefined") {
+      try {
+        const raw =
+          localStorage.getItem("gov_user") ||
+          sessionStorage.getItem("gov_user") ||
+          localStorage.getItem("rb_user") ||
+          sessionStorage.getItem("rb_user");
+        if (raw) storedUser = JSON.parse(raw);
+      } catch {}
+    }
+
+    if (storedUser) {
+      if (storedUser.name) setName(storedUser.name);
+      if (storedUser.email) setEmail(storedUser.email);
+      if (storedUser.role) setRole(storedUser.role);
+      if (storedUser.handle) setHandle(storedUser.handle);
+      if (storedUser.city) setCity(storedUser.city);
+      if (storedUser.avatar_url) setAvatarUrl(storedUser.avatar_url);
+      if (storedUser.bio) setBio(storedUser.bio);
+      if (Array.isArray(storedUser.hobbies)) setHobbies(storedUser.hobbies);
+      if (storedUser.emergency_contact) setEmergencyContact(storedUser.emergency_contact);
+    }
+
     fetchProfile();
     fetchContributions();
     setIsEditing(false);
     setAvatarFile(null);
     setAvatarPreview(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, idToken]);
+  }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!mounted || !isOpen) return null;
 
   const handleCopyHandle = () => {
     if (!handle) return;
@@ -220,17 +309,14 @@ export default function ProfileModal({
   };
 
   const handleSaveProfile = async () => {
-    if (!name.trim()) {
-      toast.error("Name cannot be empty");
-      return;
-    }
-    if (!idToken) {
+    const token = getEffectiveToken();
+    if (!token) {
       toast.error("Please sign in to update profile");
       return;
     }
 
     setSaving(true);
-    toast.loading("Saving profile & cleaning old storage...", { id: "profile-save" });
+    toast.loading("Saving profile...", { id: "profile-save" });
 
     try {
       let finalAvatarUrl = avatarUrl;
@@ -243,7 +329,7 @@ export default function ProfileModal({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             imageBase64,
@@ -268,10 +354,9 @@ export default function ProfileModal({
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: name.trim(),
           city: city.trim(),
           emergency_contact: emergencyContact.trim(),
           avatar_url: finalAvatarUrl,
@@ -286,8 +371,10 @@ export default function ProfileModal({
       }
 
       const data = await res.json();
-      setName(data.name);
-      setHandle(data.handle);
+      setName(data.name || name);
+      setEmail(data.email || email);
+      setRole(data.role || role);
+      setHandle(data.handle || handle);
       setCity(data.city || "Kolkata");
       setKarma(Number(data.karma || 50));
       setBadges(Array.isArray(data.badges) ? data.badges : ["Community Pioneer"]);
@@ -300,8 +387,10 @@ export default function ProfileModal({
       setIsEditing(false);
 
       updateUser({
-        name: data.name,
-        handle: data.handle,
+        name: data.name || name,
+        email: data.email || email,
+        role: data.role || role,
+        handle: data.handle || handle,
         city: data.city,
         karma: data.karma,
         badges: data.badges,
@@ -322,7 +411,8 @@ export default function ProfileModal({
   };
 
   const handleDeleteHazard = async (hazardId: number) => {
-    if (!idToken) return;
+    const token = getEffectiveToken();
+    if (!token) return;
     const confirmDelete = window.confirm("Are you sure you want to delete this hazard report? Its photo and record will be permanently removed.");
     if (!confirmDelete) return;
 
@@ -332,7 +422,7 @@ export default function ProfileModal({
     try {
       const res = await fetch(`/api/hazards/${hazardId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${idToken}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
@@ -354,13 +444,14 @@ export default function ProfileModal({
   };
 
   const displayAvatar = avatarPreview || avatarUrl;
+  const isOfficialUser = role === "official" || user?.role === "official";
 
-  return (
+  return createPortal(
     <div
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 9999,
+        zIndex: 99999,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -378,8 +469,12 @@ export default function ProfileModal({
           maxHeight: "92vh",
           overflowY: "auto",
           background: "linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.94))",
-          border: "1px solid rgba(56, 189, 248, 0.25)",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 35px rgba(56, 189, 248, 0.15)",
+          border: isOfficialUser
+            ? "1px solid rgba(0, 204, 255, 0.4)"
+            : "1px solid rgba(56, 189, 248, 0.25)",
+          boxShadow: isOfficialUser
+            ? "0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 40px rgba(0, 204, 255, 0.2)"
+            : "0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 35px rgba(56, 189, 248, 0.15)",
           borderRadius: "24px",
           padding: "24px",
           color: "#f8fafc",
@@ -428,7 +523,7 @@ export default function ProfileModal({
               color: activeTab === "profile" ? "#38bdf8" : "#94a3b8",
             }}
           >
-            My Profile & Bio
+            {isOfficialUser ? "Official Profile & Bio" : "My Profile & Bio"}
           </button>
           <button
             onClick={() => {
@@ -450,7 +545,7 @@ export default function ProfileModal({
               color: activeTab === "contributions" ? "#38bdf8" : "#94a3b8",
             }}
           >
-            <span>My Contributions</span>
+            <span>{isOfficialUser ? "Field Reports" : "My Contributions"}</span>
             <span
               style={{
                 fontSize: "11px",
@@ -465,6 +560,54 @@ export default function ProfileModal({
             </span>
           </button>
         </div>
+
+        {/* Read-Only Notice for Officials on Citizen Map */}
+        {isOfficialUser && readOnly && (
+          <div
+            style={{
+              padding: "14px 18px",
+              marginBottom: "20px",
+              borderRadius: "16px",
+              background: "linear-gradient(135deg, rgba(0, 204, 255, 0.12), rgba(15, 23, 42, 0.85))",
+              border: "1px solid rgba(0, 204, 255, 0.35)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "14px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: "220px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, color: "#00ccff", fontSize: "13px" }}>
+                <Landmark className="w-4 h-4 text-sky-400" />
+                <span>Government Official • View Only on Map</span>
+              </div>
+              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#cbd5e1", lineHeight: 1.4 }}>
+                {readOnlyReason || "To update your posting city, photo, or department hobbies, please access your profile from the GovOps Dashboard."}
+              </p>
+            </div>
+            <Link
+              href="/gov"
+              onClick={onClose}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "10px",
+                background: "linear-gradient(135deg, #00aaee, #0284c7)",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 600,
+                textDecoration: "none",
+                boxShadow: "0 2px 10px rgba(0, 170, 238, 0.35)",
+              }}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Go to GovOps Dashboard</span>
+            </Link>
+          </div>
+        )}
 
         {loading ? (
           <div style={{ padding: "60px 0", textAlign: "center" }}>
@@ -482,8 +625,10 @@ export default function ProfileModal({
                     height: "88px",
                     borderRadius: "50%",
                     overflow: "hidden",
-                    border: "3px solid #38bdf8",
-                    boxShadow: "0 0 20px rgba(56, 189, 248, 0.35)",
+                    border: isOfficialUser ? "3px solid #00ccff" : "3px solid #38bdf8",
+                    boxShadow: isOfficialUser
+                      ? "0 0 20px rgba(0, 204, 255, 0.4)"
+                      : "0 0 20px rgba(56, 189, 248, 0.35)",
                     background: "linear-gradient(135deg, #0284c7, #6366f1)",
                     display: "flex",
                     alignItems: "center",
@@ -506,7 +651,7 @@ export default function ProfileModal({
                   )}
                 </div>
 
-                {isEditing && (
+                {isEditing && !readOnly && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     style={{
@@ -525,7 +670,7 @@ export default function ProfileModal({
                       cursor: "pointer",
                       boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
                     }}
-                    title="Change Photo"
+                    title="Upload New Photo"
                   >
                     <Camera className="w-4 h-4" />
                   </button>
@@ -544,6 +689,27 @@ export default function ProfileModal({
                   <h2 style={{ fontSize: "22px", fontWeight: "700", margin: 0, color: "#f8fafc" }}>
                     {name || "Driver"}
                   </h2>
+
+                  {/* Official Role Badge */}
+                  {isOfficialUser && (
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        background: "rgba(0, 204, 255, 0.15)",
+                        border: "1px solid rgba(0, 204, 255, 0.4)",
+                        padding: "2px 8px",
+                        borderRadius: "999px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#00ccff",
+                      }}
+                    >
+                      <Landmark className="w-3 h-3" />
+                      <span>Government Official</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Copyable Unique Handle */}
@@ -614,7 +780,8 @@ export default function ProfileModal({
                 </div>
               </div>
 
-              {!isEditing && (
+              {/* Edit button: only when not editing and not in readOnly mode */}
+              {!isEditing && !readOnly && (
                 <button
                   onClick={() => setIsEditing(true)}
                   style={{
@@ -632,48 +799,110 @@ export default function ProfileModal({
                   }}
                 >
                   <Edit3 className="w-4 h-4" />
-                  <span>Edit</span>
+                  <span>Edit Profile</span>
                 </button>
               )}
             </div>
 
             {/* Editable or Display Fields */}
-            {isEditing ? (
+            {isEditing && !readOnly ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Non-editable Name & Email with locked indication */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
-                      Display Name
+                    <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
+                      <span>Full Name</span>
+                      <span style={{ fontSize: "10px", color: "#64748b", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                        <Lock className="w-3 h-3" /> Locked
+                      </span>
                     </label>
                     <input
                       type="text"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Enter your name"
-                      maxLength={50}
+                      disabled
+                      readOnly
                       style={{
                         width: "100%",
                         padding: "10px 14px",
                         borderRadius: "12px",
-                        background: "rgba(15, 23, 42, 0.6)",
-                        border: "1px solid rgba(255, 255, 255, 0.12)",
-                        color: "#f8fafc",
+                        background: "rgba(15, 23, 42, 0.4)",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        color: "#94a3b8",
                         fontSize: "14px",
-                        outline: "none",
+                        cursor: "not-allowed",
                       }}
+                      title="Name cannot be modified"
                     />
+                    <p style={{ margin: "4px 0 0", fontSize: "10px", color: "#64748b" }}>
+                      Name cannot be changed
+                    </p>
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
-                      Primary City / Region
+                    <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
+                      <span>Email Address</span>
+                      <span style={{ fontSize: "10px", color: "#64748b", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                        <Lock className="w-3 h-3" /> Locked
+                      </span>
+                    </label>
+                    <input
+                      type="email"
+                      value={email || user?.email || ""}
+                      disabled
+                      readOnly
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "12px",
+                        background: "rgba(15, 23, 42, 0.4)",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        color: "#94a3b8",
+                        fontSize: "14px",
+                        cursor: "not-allowed",
+                      }}
+                      title="Email cannot be modified"
+                    />
+                    <p style={{ margin: "4px 0 0", fontSize: "10px", color: "#64748b" }}>
+                      Email cannot be changed
+                    </p>
+                  </div>
+                </div>
+
+                {/* Editable Posting City and SOS/Contact */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", color: "#38bdf8", marginBottom: "6px", fontWeight: 600 }}>
+                      {isOfficialUser ? "Posting City / Jurisdiction" : "Primary City / Region"}
                     </label>
                     <input
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Kolkata, Mumbai, Delhi"
+                      placeholder="e.g. Kolkata, Howrah, Delhi"
                       maxLength={50}
+                      style={{
+                        width: "100%",
+                        padding: "10px 14px",
+                        borderRadius: "12px",
+                        background: "rgba(15, 23, 42, 0.6)",
+                        border: "1px solid rgba(56, 189, 248, 0.35)",
+                        color: "#f8fafc",
+                        fontSize: "14px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
+                      {isOfficialUser ? "Official Contact / Dispatch" : "Emergency SOS Contact"}
+                    </label>
+                    <input
+                      type="tel"
+                      value={emergencyContact}
+                      onChange={(e) => setEmergencyContact(e.target.value)}
+                      placeholder="e.g. +91 9876543210"
+                      maxLength={20}
                       style={{
                         width: "100%",
                         padding: "10px 14px",
@@ -690,35 +919,16 @@ export default function ProfileModal({
 
                 <div>
                   <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
-                    Emergency SOS Contact (Phone number for 1-Tap SOS SMS)
-                  </label>
-                  <input
-                    type="tel"
-                    value={emergencyContact}
-                    onChange={(e) => setEmergencyContact(e.target.value)}
-                    placeholder="e.g. +91 9876543210 or 112"
-                    maxLength={20}
-                    style={{
-                      width: "100%",
-                      padding: "10px 14px",
-                      borderRadius: "12px",
-                      background: "rgba(15, 23, 42, 0.6)",
-                      border: "1px solid rgba(255, 255, 255, 0.12)",
-                      color: "#f8fafc",
-                      fontSize: "14px",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "6px", fontWeight: 600 }}>
-                    Bio / Description
+                    {isOfficialUser ? "Official Bio / Department Role" : "Bio / Description"}
                   </label>
                   <textarea
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell other riders about yourself (e.g. Daily commuter on NH48, motorcycle enthusiast...)"
+                    placeholder={
+                      isOfficialUser
+                        ? "e.g. Traffic Operations & Highway Safety Division. Road hazard inspector..."
+                        : "Tell other riders about yourself (e.g. Daily commuter on NH48, motorcycle enthusiast...)"
+                    }
                     rows={3}
                     maxLength={500}
                     style={{
@@ -741,7 +951,7 @@ export default function ProfileModal({
                 {/* Hobbies Selector */}
                 <div>
                   <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "8px", fontWeight: 600 }}>
-                    Interests & Riding Tags ({hobbies.length}/10)
+                    {isOfficialUser ? "Department & Specialization Tags" : "Interests & Riding Tags"} ({hobbies.length}/10)
                   </label>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
                     {hobbies.map((h, i) => (
@@ -772,6 +982,7 @@ export default function ProfileModal({
                             padding: 0,
                             display: "flex",
                           }}
+                          title="Remove tag"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -779,7 +990,7 @@ export default function ProfileModal({
                     ))}
                   </div>
 
-                  {/* Add Custom Hobby */}
+                  {/* Add Custom Hobby / Tag */}
                   <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
                     <input
                       type="text"
@@ -791,7 +1002,7 @@ export default function ProfileModal({
                           handleAddHobby(newHobbyInput);
                         }
                       }}
-                      placeholder="Add custom interest (press Enter)"
+                      placeholder={isOfficialUser ? "Add department tag / specialization (press Enter)" : "Add interest or tag (press Enter)"}
                       style={{
                         flex: 1,
                         padding: "8px 12px",
@@ -808,9 +1019,9 @@ export default function ProfileModal({
                       style={{
                         padding: "8px 14px",
                         borderRadius: "10px",
-                        background: "rgba(56, 189, 248, 0.2)",
-                        border: "1px solid rgba(56, 189, 248, 0.4)",
-                        color: "#38bdf8",
+                        background: isOfficialUser ? "rgba(0, 204, 255, 0.2)" : "rgba(56, 189, 248, 0.2)",
+                        border: isOfficialUser ? "1px solid rgba(0, 204, 255, 0.4)" : "1px solid rgba(56, 189, 248, 0.4)",
+                        color: isOfficialUser ? "#00ccff" : "#38bdf8",
                         fontWeight: 600,
                         fontSize: "13px",
                         cursor: "pointer",
@@ -820,27 +1031,29 @@ export default function ProfileModal({
                     </button>
                   </div>
 
-                  {/* Preset Suggestions */}
+                  {/* Preset Suggestions (Work-related for officials, rider hobbies for citizens) */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                    {PRESET_HOBBIES.filter((p) => !hobbies.includes(p)).map((preset, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => handleAddHobby(preset)}
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: "999px",
-                          background: "rgba(255, 255, 255, 0.05)",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
-                          color: "#94a3b8",
-                          fontSize: "11px",
-                          cursor: "pointer",
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        + {preset}
-                      </button>
-                    ))}
+                    {(isOfficialUser ? OFFICIAL_SPECIALIZATION_TAGS : CITIZEN_HOBBIES_TAGS)
+                      .filter((p) => !hobbies.includes(p))
+                      .map((preset, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => handleAddHobby(preset)}
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: "999px",
+                            background: isOfficialUser ? "rgba(0, 204, 255, 0.08)" : "rgba(255, 255, 255, 0.05)",
+                            border: isOfficialUser ? "1px solid rgba(0, 204, 255, 0.25)" : "1px solid rgba(255, 255, 255, 0.1)",
+                            color: isOfficialUser ? "#7dd3fc" : "#94a3b8",
+                            fontSize: "11px",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          + {preset}
+                        </button>
+                      ))}
                   </div>
                 </div>
 
@@ -902,6 +1115,40 @@ export default function ProfileModal({
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Account Details & Email */}
+                <div
+                  style={{
+                    padding: "14px 18px",
+                    background: "rgba(15, 23, 42, 0.6)",
+                    borderRadius: "16px",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Mail className="w-4 h-4 text-sky-400" />
+                    <div>
+                      <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Official Email
+                      </span>
+                      <span style={{ fontSize: "13px", color: "#e2e8f0", fontWeight: 500 }}>
+                        {email || user?.email || "Not provided"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {isOfficialUser ? "Posting City" : "City"}
+                    </span>
+                    <span style={{ fontSize: "13px", color: "#38bdf8", fontWeight: 600 }}>
+                      {city}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Bio Card */}
                 <div
                   style={{
@@ -912,10 +1159,10 @@ export default function ProfileModal({
                   }}
                 >
                   <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
-                    About Rider
+                    {isOfficialUser ? "About Official / Department Role" : "About Rider"}
                   </span>
                   <p style={{ margin: 0, fontSize: "14px", color: bio ? "#cbd5e1" : "#64748b", fontStyle: bio ? "normal" : "italic", lineHeight: "1.5" }}>
-                    {bio || "No bio added yet. Click Edit to tell others about yourself!"}
+                    {bio || (isOfficialUser ? "No official bio added yet." : "No bio added yet. Click Edit to tell others about yourself!")}
                   </p>
                 </div>
 
@@ -929,7 +1176,7 @@ export default function ProfileModal({
                   }}
                 >
                   <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
-                    Safety Achievements & Badges ({badges.length})
+                    {isOfficialUser ? "Official Accreditations & Badges" : "Safety Achievements & Badges"} ({badges.length})
                   </span>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                     {badges.map((b, i) => (
@@ -965,7 +1212,7 @@ export default function ProfileModal({
                   }}
                 >
                   <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
-                    Interests & Riding Tags
+                    {isOfficialUser ? "Department Tags & Specializations" : "Interests & Riding Tags"}
                   </span>
                   {hobbies.length > 0 ? (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
@@ -988,7 +1235,7 @@ export default function ProfileModal({
                     </div>
                   ) : (
                     <p style={{ margin: 0, fontSize: "13px", color: "#64748b", fontStyle: "italic" }}>
-                      No interests selected yet.
+                      No interests or tags added yet.
                     </p>
                   )}
                 </div>
@@ -1009,7 +1256,7 @@ export default function ProfileModal({
                     <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
                     <div>
                       <span style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#f87171", textTransform: "uppercase" }}>
-                        1-Tap Emergency SOS Contact
+                        {isOfficialUser ? "Department Dispatch Contact" : "1-Tap Emergency SOS Contact"}
                       </span>
                       <span style={{ fontSize: "13px", color: "#fca5a5", fontWeight: 600 }}>
                         {emergencyContact}
@@ -1200,6 +1447,7 @@ export default function ProfileModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

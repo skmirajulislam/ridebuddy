@@ -38,15 +38,9 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, city, avatar_url, bio, hobbies, emergency_contact } = body;
+    const { city, avatar_url, bio, hobbies, emergency_contact } = body;
 
     // Validation
-    if (name !== undefined && typeof name !== "string") {
-      return NextResponse.json({ error: "Name must be a string" }, { status: 400 });
-    }
-    if (name !== undefined && name.trim().length === 0) {
-      return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
-    }
     if (city !== undefined && typeof city !== "string") {
       return NextResponse.json({ error: "City must be a string" }, { status: 400 });
     }
@@ -65,7 +59,6 @@ export async function PATCH(req: NextRequest) {
       : undefined;
 
     const updated = await updateUserProfile(authUser.userId, {
-      name: name !== undefined ? name.trim() : undefined,
       city: city !== undefined ? city.trim() : undefined,
       avatar_url: avatar_url !== undefined ? avatar_url : undefined,
       bio: bio !== undefined ? bio.trim() : undefined,

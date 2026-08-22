@@ -223,7 +223,7 @@ export default function MapView({
       if (selectedId) {
         const target = hazards.find((h) => h.id === selectedId);
         if (target && !isNaN(target.lng) && !isNaN(target.lat)) {
-          map.flyTo({ center: [target.lng, target.lat], zoom: 15, duration: 800 });
+          map.flyTo({ center: [target.lng, target.lat], zoom: 16.5, duration: 900 });
         }
       }
     };

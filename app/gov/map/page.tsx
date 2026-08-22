@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Header from "../_components/Header";
 import MapView from "../_components/MapView";
 import HazardPanel from "../_components/HazardPanel";
@@ -21,12 +22,41 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * c;
 }
 
-export default function GovMapPage() {
+function GovMapContent() {
+  const searchParams = useSearchParams();
+  const targetId = searchParams.get("id");
+  const targetLat = searchParams.get("lat");
+  const targetLng = searchParams.get("lng");
+
   const { data: hazards = [], isPending } = useHazards();
   const [selected, setSelected] = useState<Hazard | null>(null);
-  const [userLoc, setUserLoc] = useState<{ lng: number; lat: number } | null>(
-    null
-  );
+  const [userLoc, setUserLoc] = useState<{ lng: number; lat: number } | null>(null);
+
+  // Auto-select hazard from URL query params (e.g. redirected from HazardPanel)
+  useEffect(() => {
+    if (hazards.length === 0) return;
+
+    if (targetId) {
+      const match = hazards.find((h) => String(h.id) === targetId);
+      if (match) {
+        setSelected(match);
+        return;
+      }
+    }
+
+    if (targetLat && targetLng) {
+      const latNum = parseFloat(targetLat);
+      const lngNum = parseFloat(targetLng);
+      if (!isNaN(latNum) && !isNaN(lngNum)) {
+        const match = hazards.find(
+          (h) => Math.abs(h.lat - latNum) < 0.0002 && Math.abs(h.lng - lngNum) < 0.0002
+        );
+        if (match) {
+          setSelected(match);
+        }
+      }
+    }
+  }, [targetId, targetLat, targetLng, hazards]);
 
   const nearestHazards = useMemo(() => {
     if (!userLoc || hazards.length === 0) return [];
@@ -185,5 +215,26 @@ export default function GovMapPage() {
         onClose={() => setSelected(null)}
       />
     </>
+  );
+}
+
+export default function GovMapPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+          }}
+        >
+          <span className="spinner" />
+        </div>
+      }
+    >
+      <GovMapContent />
+    </Suspense>
   );
 }

@@ -4,6 +4,11 @@ export interface AuthUser {
   email: string;
   role: string;
   token: string;
+  avatar_url?: string | null;
+  city?: string;
+  hobbies?: string[];
+  bio?: string | null;
+  emergency_contact?: string | null;
 }
 
 const TOKEN_KEY = "gov_token";

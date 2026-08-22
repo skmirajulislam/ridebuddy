@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -9,9 +11,11 @@ import {
   Route,
   Landmark,
   LogOut,
+  UserCheck,
 } from "lucide-react";
 import { authService } from "../_services/auth";
 import { useAuthContext } from "../_store/auth.store";
+import ProfileModal from "@/app/_components/ProfileModal";
 
 const NAV = [
   { href: "/gov", icon: LayoutDashboard, label: "Dashboard" },
@@ -21,6 +25,7 @@ const NAV = [
 
 export default function Sidebar() {
   const { user, setUser } = useAuthContext();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -28,6 +33,13 @@ export default function Sidebar() {
     authService.logout();
     setUser(null);
     router.replace("/gov/login");
+  };
+
+  const handleProfileUpdated = () => {
+    const updated = authService.getUser();
+    if (updated) {
+      setUser(updated);
+    }
   };
 
   const initials = user?.name
@@ -40,61 +52,101 @@ export default function Sidebar() {
     : "OF";
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar__brand">
-        <div className="sidebar__brand-icon flex items-center justify-center">
-          <Landmark className="w-5 h-5 text-sky-400" />
-        </div>
-        <div>
-          <div className="sidebar__brand-name font-bold">GovOps Portal</div>
-          <div className="sidebar__brand-sub">Road Hazard Command</div>
-        </div>
-      </div>
-
-      <nav className="sidebar__nav">
-        {NAV.map(({ href, icon: Icon, label }) => {
-          const isActive = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`sidebar__link${isActive ? " sidebar__link--active" : ""}`}
-            >
-              <span className="sidebar__link-icon flex items-center justify-center">
-                <Icon className="w-4 h-4" />
-              </span>
-              <span>{label}</span>
-            </Link>
-          );
-        })}
-
-        <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--gov-border)" }}>
-          <Link
-            href="/"
-            className="sidebar__link"
-            style={{ color: "var(--gov-primary)", fontWeight: 600 }}
-          >
-            <span className="sidebar__link-icon flex items-center justify-center">
-              <Route className="w-4 h-4" />
-            </span>
-            <span>Citizen Map</span>
-          </Link>
-        </div>
-      </nav>
-
-      <div className="sidebar__footer">
-        <div className="sidebar__user">
-          <div className="sidebar__avatar">{initials}</div>
-          <div style={{ overflow: "hidden" }}>
-            <div className="sidebar__user-name">{user?.name || "Official"}</div>
-            <div className="sidebar__user-role">Government Official</div>
+    <>
+      <aside className="sidebar">
+        <div className="sidebar__brand">
+          <div className="sidebar__brand-icon flex items-center justify-center">
+            <Landmark className="w-5 h-5 text-sky-400" />
+          </div>
+          <div>
+            <div className="sidebar__brand-name font-bold">GovOps Portal</div>
+            <div className="sidebar__brand-sub">Road Hazard Command</div>
           </div>
         </div>
-        <button className="sidebar__logout flex items-center justify-center gap-1.5" onClick={handleLogout}>
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Log out</span>
-        </button>
-      </div>
-    </aside>
+
+        <nav className="sidebar__nav">
+          {NAV.map(({ href, icon: Icon, label }) => {
+            const isActive = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`sidebar__link${isActive ? " sidebar__link--active" : ""}`}
+              >
+                <span className="sidebar__link-icon flex items-center justify-center">
+                  <Icon className="w-4 h-4" />
+                </span>
+                <span>{label}</span>
+              </Link>
+            );
+          })}
+
+          <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--gov-border)" }}>
+            <Link
+              href="/"
+              className="sidebar__link"
+              style={{ color: "var(--gov-primary)", fontWeight: 600 }}
+            >
+              <span className="sidebar__link-icon flex items-center justify-center">
+                <Route className="w-4 h-4" />
+              </span>
+              <span>Citizen Map</span>
+            </Link>
+          </div>
+        </nav>
+
+        <div className="sidebar__footer">
+          <div
+            className="sidebar__user"
+            onClick={() => setProfileModalOpen(true)}
+            role="button"
+            tabIndex={0}
+            title="Click to view and edit your official profile (Posting city, photo, hobbies)"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setProfileModalOpen(true);
+              }
+            }}
+          >
+            <div className="sidebar__avatar">
+              {user?.avatar_url ? (
+                <Image
+                  src={user.avatar_url}
+                  alt={user?.name || "Official"}
+                  width={32}
+                  height={32}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                  unoptimized
+                />
+              ) : (
+                initials
+              )}
+            </div>
+            <div style={{ overflow: "hidden", flex: 1, minWidth: 0 }}>
+              <div className="sidebar__user-name flex items-center gap-1">
+                <span className="truncate">{user?.name || "Official"}</span>
+              </div>
+              <div className="sidebar__user-role flex items-center gap-1">
+                <UserCheck className="w-3 h-3 text-sky-400" />
+                <span>Government Official</span>
+              </div>
+            </div>
+          </div>
+          <button className="sidebar__logout flex items-center justify-center gap-1.5" onClick={handleLogout}>
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Log out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Official Profile Popup Modal with Full Edit Capabilities */}
+      <ProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        onProfileUpdated={handleProfileUpdated}
+        readOnly={false}
+      />
+    </>
   );
 }

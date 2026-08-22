@@ -2453,6 +2453,8 @@ export default function Map() {
       <ProfileModal
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
+        readOnly={user?.role === "official"}
+        readOnlyReason="As a government official, you can view your profile details here on the map. Profile updates (photo, posting city, and hobbies) can only be modified from the GovOps Dashboard."
         onProfileUpdated={() => {
           loadHazards();
         }}
