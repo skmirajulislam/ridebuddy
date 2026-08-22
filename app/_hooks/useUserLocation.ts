@@ -8,6 +8,7 @@ export interface UserPosition {
   accuracy: number;
   speed?: number | null;
   heading?: number | null;
+  timestamp: number;
 }
 
 export function useUserLocation() {
@@ -15,7 +16,8 @@ export function useUserLocation() {
   const [error, setError] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
   const watchIdRef = useRef<number | null>(null);
-  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPosRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -24,86 +26,73 @@ export function useUserLocation() {
     }
 
     let isMounted = true;
-    let highAccuracy = true;
 
     const handleSuccess = (pos: GeolocationPosition) => {
       if (!isMounted) return;
+
+      const newLat = pos.coords.latitude;
+      const newLng = pos.coords.longitude;
+      const now = Date.now();
+
+      // Ensure fresh state update
+      lastPosRef.current = { lat: newLat, lng: newLng, time: now };
+
       setPosition({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
+        lat: newLat,
+        lng: newLng,
         accuracy: pos.coords.accuracy,
         speed: pos.coords.speed,
         heading: pos.coords.heading,
+        timestamp: pos.timestamp || now,
       });
+
       setError(null);
       setIsTracking(true);
     };
 
-    const startWatching = (useHighAccuracy: boolean) => {
-      if (typeof navigator === "undefined" || !navigator.geolocation || !isMounted) return;
-
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-
-      setIsTracking(true);
-
-      try {
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          handleSuccess,
-          (err) => {
-            if (!isMounted) return;
-
-            // If high accuracy GPS timed out or satellite fix is unavailable (common on laptops / indoors)
-            if (useHighAccuracy && (err.code === 3 || err.code === 2)) {
-              console.warn("High-accuracy GPS timed out; falling back to standard/network location.");
-              highAccuracy = false;
-              startWatching(false);
-              return;
-            }
-
-            if (err.code === 1) {
-              // Permission denied
-              setError("Location permission denied. Please allow location access in your browser.");
-              setIsTracking(false);
-            } else {
-              // Non-fatal timeout or temporary loss - schedule silent retry
-              console.warn("GPS tracking notice:", err.message);
-              if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-              retryTimerRef.current = setTimeout(() => {
-                if (isMounted) {
-                  startWatching(highAccuracy);
-                }
-              }, 4000);
-            }
-          },
-          {
-            enableHighAccuracy: useHighAccuracy,
-            timeout: useHighAccuracy ? 15000 : 30000,
-            maximumAge: useHighAccuracy ? 5000 : 30000,
-          }
-        );
-      } catch (e) {
-        console.warn("Geolocation watch error:", e);
+    const handleError = (err: GeolocationPositionError) => {
+      if (!isMounted) return;
+      if (err.code === 1) {
+        setError("Location permission denied. Please allow location access in your browser.");
+        setIsTracking(false);
+      } else {
+        console.warn("[GPS] Location notice:", err.message);
       }
     };
 
-    // Fast initial check with fallback
-    navigator.geolocation.getCurrentPosition(
-      handleSuccess,
-      () => {
-        navigator.geolocation.getCurrentPosition(
-          handleSuccess,
-          () => {},
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
-        );
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
-    );
+    const geoOptions: PositionOptions = {
+      enableHighAccuracy: true,
+      maximumAge: 0, // Never use cached GPS positions — force real-time hardware satellite querying
+      timeout: 6000, // Short timeout for rapid continuous updates
+    };
 
-    // Continuous watch
-    startWatching(true);
+    // 1. Initial fast GPS query
+    navigator.geolocation.getCurrentPosition(handleSuccess, handleError, geoOptions);
+
+    // 2. Hardware GPS Stream Watcher
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        handleSuccess,
+        handleError,
+        geoOptions
+      );
+      setIsTracking(true);
+    } catch (e) {
+      console.warn("[GPS] watchPosition failed:", e);
+    }
+
+    // 3. Active Real-Time Polling Loop (1.5s interval)
+    // Ensures continuous real-time updates even when walking slowly or stationary near a hazard
+    pollIntervalRef.current = setInterval(() => {
+      if (!isMounted) return;
+      navigator.geolocation.getCurrentPosition(
+        handleSuccess,
+        () => {
+          // If high-accuracy query times out, retry without breaking state
+        },
+        geoOptions
+      );
+    }, 1500);
 
     return () => {
       isMounted = false;
@@ -111,9 +100,9 @@ export function useUserLocation() {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
+      if (pollIntervalRef.current !== null) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
       setIsTracking(false);
     };

@@ -1,14 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow, format } from "date-fns";
-import { X, Play, CheckCircle2, RotateCcw, MapPin, ExternalLink, Navigation } from "lucide-react";
+import { X, Play, CheckCircle2, RotateCcw, MapPin, ExternalLink, Navigation, FileText } from "lucide-react";
 import type { Hazard } from "../_services/api";
 import { useUpdateStatus } from "../_hooks/useHazards";
 import { StatusBadge } from "./DataTable";
 import MapPreview from "./MapPreview";
+import WorkOrderModal from "./WorkOrderModal";
 
 interface HazardPanelProps {
   hazard: Hazard | null;
@@ -20,6 +21,7 @@ const SEV_LABEL: Record<number, string> = { 1: "Low", 2: "Medium", 3: "High" };
 export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
   const router = useRouter();
   const { mutate: updateStatus, isPending } = useUpdateStatus();
+  const [workOrderOpen, setWorkOrderOpen] = useState(false);
 
   const act = (status: Hazard["status"]) => {
     if (!hazard) return;
@@ -189,6 +191,28 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
                 </button>
               )}
 
+              {/* Generate PWD Work Order Button */}
+              <button
+                type="button"
+                className="btn flex items-center justify-center gap-2"
+                onClick={() => setWorkOrderOpen(true)}
+                style={{
+                  background: "var(--gov-surface2)",
+                  border: "1px solid var(--gov-border-strong)",
+                  color: "var(--gov-text)",
+                  padding: "9px 16px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  marginTop: "4px",
+                }}
+                title="Generate printable PWD repair work order & dispatch briefing"
+              >
+                <FileText className="w-4 h-4 text-amber-400" />
+                <span>Generate PWD Work Order</span>
+              </button>
+
               {/* Direct Location Map Navigation Button */}
               <button
                 type="button"
@@ -204,7 +228,7 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
                   fontSize: "13px",
                   boxShadow: "0 2px 10px rgba(0, 204, 255, 0.15)",
                   cursor: "pointer",
-                  marginTop: "6px",
+                  marginTop: "4px",
                   transition: "all 0.15s ease",
                 }}
                 title="Go directly to this hazard's exact location on Map View"
@@ -229,6 +253,13 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
           Select a hazard row or map marker to see details
         </div>
       )}
+
+      {/* Official PWD Work Order Modal */}
+      <WorkOrderModal
+        isOpen={workOrderOpen}
+        onClose={() => setWorkOrderOpen(false)}
+        hazard={hazard}
+      />
     </div>
   );
 }

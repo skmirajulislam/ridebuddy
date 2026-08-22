@@ -12,6 +12,7 @@ import {
   Landmark,
   LogOut,
   UserCheck,
+  BarChart3,
 } from "lucide-react";
 import { authService } from "../_services/auth";
 import { useAuthContext } from "../_store/auth.store";
@@ -21,6 +22,7 @@ const NAV = [
   { href: "/gov", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/gov/hazards", icon: AlertTriangle, label: "Hazards" },
   { href: "/gov/map", icon: MapIcon, label: "Map View" },
+  { href: "/gov/analytics", icon: BarChart3, label: "Analytics & Reports" },
 ];
 
 export default function Sidebar() {

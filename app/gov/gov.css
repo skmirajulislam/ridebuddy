@@ -723,3 +723,28 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ── Print Media Styles for PWD Work Orders ──────────────────────────────── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-work-order,
+  #printable-work-order * {
+    visibility: visible;
+  }
+  #printable-work-order {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+

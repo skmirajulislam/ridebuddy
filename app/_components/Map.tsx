@@ -13,6 +13,9 @@ import { useNotifications } from "../_hooks/useNotifications";
 import { useHazardCache, type CachedHazard } from "../_hooks/useHazardCache";
 import { useAuth } from "../_hooks/useAuth";
 import { useVoiceAssistant } from "../_hooks/useVoiceAssistant";
+import { useHazardAudioAlerts } from "../_hooks/useHazardAudioAlerts";
+import { useRoadQualityLayer } from "../_hooks/useRoadQualityLayer";
+import { useOfflineSync } from "../_hooks/useOfflineSync";
 
 import ReportButton from "./ReportButton";
 import BottomSheet from "./BottomSheet";
@@ -48,6 +51,10 @@ import {
   AlertOctagon,
   DownloadCloud,
   Layers,
+  Volume2,
+  VolumeX,
+  Activity,
+  WifiOff,
 } from "lucide-react";
 
 import {
@@ -133,7 +140,7 @@ function haversineDistance(
   lat2: number,
   lng2: number
 ): number {
-  const R = 6371e3;
+  const R = 6371008.8; // Mean Earth radius in meters (high precision)
   const toRad = (d: number) => (d * Math.PI) / 180;
   const φ1 = toRad(lat1),
     φ2 = toRad(lat2);
@@ -286,6 +293,36 @@ export default function Map() {
   const { position } = useUserLocation();
   const { permission, requestPermission, sendNotification } = useNotifications();
   const { getCache, setCache } = useHazardCache();
+
+  // ── Offline Background Sync ───────────────────────────────────────────────
+  const { isOnline, pendingCount: offlinePendingCount } = useOfflineSync({
+    idToken,
+    onSyncComplete: () => {
+      loadHazards();
+    },
+  });
+
+  // ── In-Ride Real-Time Audio Warnings (150m SpeechSynthesis & Chime) ────────
+  const { isAudioAlertsEnabled, toggleAudioAlerts } = useHazardAudioAlerts({
+    userLat: position?.lat ?? null,
+    userLng: position?.lng ?? null,
+    speed: position?.speed ?? null,
+    hazards,
+    warningRadiusMeters: 150,
+    onAlertTrigger: (alertMsg) => {
+      setWarning(alertMsg);
+      sendNotification("Hazard Alert", alertMsg);
+    },
+    onAlertDismiss: () => {
+      setWarning(null);
+    },
+  });
+
+  // ── Road Quality Index (RQI) Heatmap Layer ────────────────────────────────
+  const { isRqiVisible, toggleRqiLayer } = useRoadQualityLayer({
+    map: map.current,
+    hazards,
+  });
 
   // ── Voice Assistant Integration ──────────────────────────────────────────
   const {
@@ -810,36 +847,6 @@ export default function Map() {
           `;
         }
       }
-    }
-
-    // ── Speed-Adaptive Proximity check (Free Drive & Radar Mode) ───────────
-    const currentSpeedKmh = position.speed ? position.speed * 3.6 : 0;
-    const isHighSpeed = currentSpeedKmh > 35;
-    const alertRadius = isHighSpeed ? 150 : 80;
-
-    const nearbyHazard = hazards.find(
-      (h) =>
-        !notifiedHazardIds.current.has(h.id) &&
-        haversineDistance(lat, lng, h.lat, h.lng) < alertRadius
-    );
-
-    if (nearbyHazard) {
-      notifiedHazardIds.current.add(nearbyHazard.id);
-      const hazardDistance = Math.round(haversineDistance(lat, lng, nearbyHazard.lat, nearbyHazard.lng));
-      const formattedType = nearbyHazard.type.charAt(0).toUpperCase() + nearbyHazard.type.slice(1);
-
-      let alertMsg: string;
-      if (hazardDistance <= 25) {
-        alertMsg = `Caution: ${formattedType} in ${hazardDistance} meters! Reduce speed now.`;
-      } else if (isHighSpeed) {
-        alertMsg = `High speed detected (${Math.round(currentSpeedKmh)} km/h)! Slow down, ${formattedType} ${hazardDistance}m ahead.`;
-      } else {
-        alertMsg = `${formattedType} reported ${hazardDistance}m ahead. Drive carefully.`;
-      }
-
-      setWarning(alertMsg);
-      sendNotification("Hazard Alert", alertMsg);
-      speak(alertMsg, true);
     }
 
     // ── Community Verification Prompt Trigger (within 35m) ─────────────────
@@ -2166,6 +2173,81 @@ export default function Map() {
               <Trophy className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden sm:inline">Ranks</span>
             </button>
+
+            {/* Audio Voice Hazard Alerts Toggle (150m alerts) */}
+            <button
+              onClick={toggleAudioAlerts}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 10px",
+                borderRadius: "999px",
+                border: isAudioAlertsEnabled ? "1px solid rgba(56, 189, 248, 0.4)" : "1px solid rgba(255, 255, 255, 0.1)",
+                background: isAudioAlertsEnabled ? "rgba(56, 189, 248, 0.15)" : "rgba(255, 255, 255, 0.05)",
+                color: isAudioAlertsEnabled ? "#38bdf8" : "#94a3b8",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "all 0.2s",
+              }}
+              title={isAudioAlertsEnabled ? "In-Ride Audio Alerts: ACTIVE (Spoken 150m warnings)" : "In-Ride Audio Alerts: MUTED"}
+            >
+              {isAudioAlertsEnabled ? (
+                <Volume2 className="w-3.5 h-3.5 text-sky-400" />
+              ) : (
+                <VolumeX className="w-3.5 h-3.5 text-slate-400" />
+              )}
+              <span className="hidden lg:inline text-[11px]">Audio</span>
+            </button>
+
+            {/* Road Quality Index (RQI) Safety Heatmap Toggle */}
+            <button
+              onClick={toggleRqiLayer}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 10px",
+                borderRadius: "999px",
+                border: isRqiVisible ? "1px solid rgba(34, 197, 94, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                background: isRqiVisible ? "rgba(34, 197, 94, 0.15)" : "rgba(255, 255, 255, 0.05)",
+                color: isRqiVisible ? "#4ade80" : "#94a3b8",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "all 0.2s",
+              }}
+              title={isRqiVisible ? "Road Quality Index Heatmap: ACTIVE" : "Toggle Road Quality Heatmap (Green/Amber/Red safety corridors)"}
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden lg:inline text-[11px]">RQI</span>
+            </button>
+
+            {/* Offline Status Badge */}
+            {!isOnline && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  padding: "4px 9px",
+                  borderRadius: "999px",
+                  background: "rgba(234, 179, 8, 0.15)",
+                  border: "1px solid rgba(234, 179, 8, 0.4)",
+                  color: "#facc15",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  flexShrink: 0,
+                }}
+                title={offlinePendingCount > 0 ? `${offlinePendingCount} hazard reports queued offline` : "Offline Mode Active"}
+              >
+                <WifiOff className="w-3 h-3 text-amber-400" />
+                <span>Offline{offlinePendingCount > 0 ? ` (${offlinePendingCount})` : ""}</span>
+              </div>
+            )}
 
             {/* Offline Map Pack Button */}
             <button

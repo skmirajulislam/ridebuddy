@@ -6,6 +6,7 @@
 import React, { useState, useRef } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { saveOfflineHazard } from "@/lib/offline/offlineQueue";
 import {
   AlertTriangle,
   Droplets,
@@ -259,6 +260,36 @@ export default function BottomSheet({
     setIsSubmitting(true);
     setError(null);
 
+    // Check if device is offline - queue in IndexedDB
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        setSubmitStatus("submitting");
+        toast.loading("Saving hazard report locally...", { id: "hazard-submit" });
+        await saveOfflineHazard({
+          type,
+          severity,
+          lat: userLat,
+          lng: userLng,
+          imageBlob: imageFile,
+          imageName: imageFile.name || `hazard_${Date.now()}.jpg`,
+        });
+        toast.success("Saved offline! Will automatically sync when you reconnect.", { id: "hazard-submit" });
+        setSubmitStatus("success");
+        setTimeout(() => {
+          reset();
+          onSuccess();
+          onClose();
+        }, 1500);
+      } catch (saveErr) {
+        console.error("[BottomSheet] Offline save error:", saveErr);
+        setError("Failed to save offline. Please try again.");
+        setSubmitStatus("error");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     try {
       // Step 1: encode image for AI validation
       setSubmitStatus("validating");
@@ -311,6 +342,31 @@ export default function BottomSheet({
       }, 1500);
     } catch (err: unknown) {
       console.error("[BottomSheet] Submit error:", err);
+
+      // Reactive offline fallback if fetch failed due to connectivity drop
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        try {
+          await saveOfflineHazard({
+            type,
+            severity,
+            lat: userLat,
+            lng: userLng,
+            imageBlob: imageFile,
+            imageName: imageFile.name || `hazard_${Date.now()}.jpg`,
+          });
+          toast.success("Network dropped: Report saved offline! Will auto-sync when online.", { id: "hazard-submit" });
+          setSubmitStatus("success");
+          setTimeout(() => {
+            reset();
+            onSuccess();
+            onClose();
+          }, 1500);
+          return;
+        } catch (saveErr) {
+          console.warn("[BottomSheet] Secondary offline save failed:", saveErr);
+        }
+      }
+
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setSubmitStatus("error");
     } finally {
