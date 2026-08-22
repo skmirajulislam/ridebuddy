@@ -4,6 +4,7 @@
 // Enhanced 4-step reporting flow with GPS proximity validation and Gemini AI image verification.
 
 import React, { useState, useRef } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -551,10 +552,12 @@ export default function BottomSheet({
                     </div>
                   ) : getSafeImageUrl(imagePreviewUrl) ? (
                     <div className="camera-preview">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={getSafeImageUrl(imagePreviewUrl)}
+                      <Image
+                        src={getSafeImageUrl(imagePreviewUrl)!}
                         alt="Hazard preview"
+                        width={400}
+                        height={300}
+                        unoptimized
                         className="camera-preview__img"
                       />
                       <div className="flex items-center justify-center gap-2 mt-3 w-full">
@@ -755,8 +758,14 @@ export default function BottomSheet({
                       {/* Thumbnail preview */}
                       {getSafeImageUrl(imagePreviewUrl) && (
                         <div className="final-preview relative rounded-xl overflow-hidden mb-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={getSafeImageUrl(imagePreviewUrl)} alt="Hazard" className="final-preview__img w-full h-36 object-cover" />
+                          <Image
+                            src={getSafeImageUrl(imagePreviewUrl)!}
+                            alt="Hazard"
+                            width={400}
+                            height={144}
+                            unoptimized
+                            className="final-preview__img w-full h-36 object-cover"
+                          />
                           <div className="final-preview__badge flex items-center gap-1.5 absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-700/60 capitalize">
                             <SelectedIcon className="w-3.5 h-3.5" style={{ color: selectedHazardConfig.color }} />
                             <span>{type}</span>

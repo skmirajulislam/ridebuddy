@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl, { Map as MapLibreMap, GeoJSONSource } from "maplibre-gl";
 import type { Feature, LineString, FeatureCollection, Point } from "geojson";
 import Link from "next/link";
+import Image from "next/image";
 import * as turf from "@turf/turf";
 import { toast } from "sonner";
 
@@ -2297,8 +2298,14 @@ export default function Map() {
                   }}
                 >
                   {user.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={user.avatar_url} alt={user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <Image
+                      src={user.avatar_url}
+                      alt={user.name || "User"}
+                      width={32}
+                      height={32}
+                      unoptimized
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
                   ) : (
                     (user.name || "U")[0]?.toUpperCase()
                   )}

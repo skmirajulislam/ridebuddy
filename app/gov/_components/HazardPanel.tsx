@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow, format } from "date-fns";
 import { X, Play, CheckCircle2, RotateCcw, MapPin, ExternalLink, Navigation } from "lucide-react";
@@ -48,10 +49,12 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
             {/* Photo Evidence if available */}
             {hazard.image_url && (
               <div style={{ borderRadius: "8px", overflow: "hidden", border: "1px solid var(--gov-border)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={hazard.image_url}
                   alt="Hazard photo"
+                  width={400}
+                  height={200}
+                  unoptimized
                   style={{ width: "100%", maxHeight: "200px", objectFit: "cover", display: "block" }}
                 />
               </div>
