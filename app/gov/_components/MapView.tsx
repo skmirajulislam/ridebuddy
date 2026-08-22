@@ -88,9 +88,39 @@ export default function MapView({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const isLoadedRef = useRef(false);
-  const [theme, setTheme] = useState<GovMapTheme>("streets");
+  const [theme, setTheme] = useState<GovMapTheme>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("gov_theme") === "dark" ? "dark" : "streets";
+    }
+    return "streets";
+  });
 
-  // Initialize map
+  const onUserLocateRef = useRef(onUserLocate);
+  useEffect(() => {
+    onUserLocateRef.current = onUserLocate;
+  }, [onUserLocate]);
+
+  const selectedIdRef = useRef(selectedId);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
+  // Sync map layer when GovOps global theme toggles
+  useEffect(() => {
+    const onGlobalThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail === "dark") {
+        handleThemeChange("dark");
+      } else if (customEvent.detail === "light") {
+        handleThemeChange("streets");
+      }
+    };
+
+    window.addEventListener("gov_theme_changed", onGlobalThemeChange);
+    return () => window.removeEventListener("gov_theme_changed", onGlobalThemeChange);
+  }, []);
+
+  // Initialize map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -115,17 +145,44 @@ export default function MapView({
     const geolocate = new maplibregl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
       trackUserLocation: true,
+      showUserLocation: true,
     });
     map.addControl(geolocate, "top-right");
 
-    if (onUserLocate) {
-      geolocate.on("geolocate", (e: GeolocationPosition) => {
-        onUserLocate(e.coords.longitude, e.coords.latitude);
-      });
-    }
+    geolocate.on("geolocate", (e: GeolocationPosition) => {
+      onUserLocateRef.current?.(e.coords.longitude, e.coords.latitude);
+      if (!selectedIdRef.current) {
+        map.flyTo({
+          center: [e.coords.longitude, e.coords.latitude],
+          zoom: 15,
+          duration: 800,
+        });
+      }
+    });
 
     map.on("load", () => {
       isLoadedRef.current = true;
+
+      // Center on official's live device GPS location on initial load if no specific hazard is selected
+      if (!selectedIdRef.current && typeof navigator !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { longitude, latitude } = pos.coords;
+            onUserLocateRef.current?.(longitude, latitude);
+            if (mapRef.current && !selectedIdRef.current) {
+              mapRef.current.flyTo({
+                center: [longitude, latitude],
+                zoom: 15,
+                duration: 900,
+              });
+            }
+          },
+          (err) => {
+            console.warn("Could not get initial live GPS location:", err);
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      }
     });
 
     // Suppress missing sprite image warnings
@@ -143,7 +200,7 @@ export default function MapView({
       mapRef.current = null;
       isLoadedRef.current = false;
     };
-  }, [onUserLocate]);
+  }, []);
 
   // Switch Theme
   const handleThemeChange = (newTheme: GovMapTheme) => {
@@ -183,36 +240,42 @@ export default function MapView({
         const color = STATUS_COLOR[h.status] ?? "#00ccff";
 
         const el = document.createElement("div");
-        el.className = "gov-map-marker";
-        el.style.cssText = `
+        el.className = "gov-map-marker-container";
+        el.style.cursor = "pointer";
+
+        const inner = document.createElement("div");
+        inner.className = "gov-map-marker";
+        inner.style.cssText = `
           width: ${isSelected ? "22px" : "16px"};
           height: ${isSelected ? "22px" : "16px"};
           border-radius: 50%;
           background: ${color};
           border: ${isSelected ? "3.5px solid #ffffff" : "2px solid #ffffff"};
           box-shadow: 0 0 10px ${color}88, 0 2px 6px rgba(0,0,0,0.4);
-          cursor: pointer;
-          transition: transform 0.15s ease, width 0.15s ease, height 0.15s ease;
+          transition: transform 0.15s ease;
           display: flex;
           align-items: center;
           justify-content: center;
         `;
 
-        el.title = `#${h.id} — ${h.type.toUpperCase()} (${h.status})`;
+        inner.title = `#${h.id} — ${h.type.toUpperCase()} (${h.status})`;
+
+        // Scale only the inner element, never modifying MapLibre's outer positioning transform
+        inner.addEventListener("mouseenter", () => {
+          inner.style.transform = "scale(1.35)";
+        });
+        inner.addEventListener("mouseleave", () => {
+          inner.style.transform = "scale(1)";
+        });
+
+        el.appendChild(inner);
+
         el.addEventListener("click", (e) => {
           e.stopPropagation();
           onSelect(h);
         });
 
-        // Hover effect
-        el.addEventListener("mouseenter", () => {
-          el.style.transform = "scale(1.25)";
-        });
-        el.addEventListener("mouseleave", () => {
-          el.style.transform = "scale(1)";
-        });
-
-        const marker = new maplibregl.Marker({ element: el })
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
           .setLngLat([h.lng, h.lat])
           .addTo(map);
 

@@ -1,5 +1,5 @@
 /* ── Gov Dashboard — Design Tokens ────────────────────────────────────────── */
-:root {
+:root, [data-theme="light"], .theme-light {
   /* Brand palette */
   --gov-primary:        #00ccff;
   --gov-primary-light:  #33d6ff;
@@ -37,6 +37,43 @@
   --shadow-sm:    0 1px 3px rgba(0,0,0,.08);
   --shadow-md:    0 4px 12px rgba(0,0,0,.10);
   --shadow-panel: 4px 0 16px rgba(0,0,0,.06);
+}
+
+/* ── Dark Mode Theme Tokens ────────────────────────────────────────────────── */
+[data-theme="dark"], .theme-dark {
+  /* Brand palette */
+  --gov-primary:        #00ccff;
+  --gov-primary-light:  #38bdf8;
+  --gov-primary-lighter:#7dd3fc;
+  --gov-primary-pale:   #0284c7;
+  --gov-primary-fade:   rgba(0, 204, 255, 0.15);
+
+  /* Surfaces */
+  --gov-bg:       #0b0f19;
+  --gov-surface:  #111827;
+  --gov-surface2: #1e293b;
+  --gov-border:   #1f293d;
+  --gov-border-strong: #334155;
+
+  /* Text */
+  --gov-text:          #f8fafc;
+  --gov-text-secondary:#cbd5e1;
+  --gov-text-muted:    #94a3b8;
+
+  /* Status */
+  --status-active:      #00ccff;
+  --status-in-progress: #fbbf24;
+  --status-resolved:    #94a3b8;
+
+  /* Severity */
+  --sev-low:    #4ade80;
+  --sev-medium: #fbbf24;
+  --sev-high:   #f87171;
+
+  /* Shadows */
+  --shadow-sm:    0 1px 3px rgba(0,0,0,.35);
+  --shadow-md:    0 4px 16px rgba(0,0,0,.45);
+  --shadow-panel: 4px 0 20px rgba(0,0,0,.30);
 }
 
 /* ── Reset & Layout ──────────────────────────────────────────────────────── */
@@ -389,6 +426,72 @@
 .badge--high {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* Dark mode badge overrides */
+[data-theme="dark"] .badge--active,
+.theme-dark .badge--active {
+  background: rgba(0, 204, 255, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(0, 204, 255, 0.3);
+}
+
+[data-theme="dark"] .badge--in_progress,
+.theme-dark .badge--in_progress {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .badge--resolved,
+.theme-dark .badge--resolved {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+[data-theme="dark"] .badge--low,
+.theme-dark .badge--low {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+[data-theme="dark"] .badge--medium,
+.theme-dark .badge--medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .badge--high,
+.theme-dark .badge--high {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Theme toggle button */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--gov-surface2);
+  border: 1px solid var(--gov-border);
+  color: var(--gov-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-toggle-btn:hover {
+  background: var(--gov-border);
+  color: var(--gov-text);
+  border-color: var(--gov-primary);
+  box-shadow: 0 2px 8px rgba(0, 204, 255, 0.15);
 }
 
 /* ── Hazard Detail Panel ─────────────────────────────────────────────────── */

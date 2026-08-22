@@ -1759,7 +1759,7 @@ export default function Map() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <Link
-                href={user?.role === "official" ? "/gov" : "/welcome"}
+                href={mounted && user?.role === "official" ? "/gov" : "/welcome"}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -1774,10 +1774,11 @@ export default function Map() {
                   borderRadius: "999px",
                   transition: "all 0.15s ease",
                 }}
-                title={user?.role === "official" ? "Return to GovOps Dashboard" : "Return to Main Website"}
+                title={mounted && user?.role === "official" ? "Return to GovOps Dashboard" : "Return to Main Website"}
+                suppressHydrationWarning
               >
                 <ArrowLeft className="w-3 h-3" />
-                <span>{user?.role === "official" ? "GovOps" : "Main"}</span>
+                <span suppressHydrationWarning>{mounted && user?.role === "official" ? "GovOps" : "Main"}</span>
               </Link>
 
               <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -2453,7 +2454,7 @@ export default function Map() {
       <ProfileModal
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
-        readOnly={user?.role === "official"}
+        readOnly={mounted && user?.role === "official"}
         readOnlyReason="As a government official, you can view your profile details here on the map. Profile updates (photo, posting city, and hobbies) can only be modified from the GovOps Dashboard."
         onProfileUpdated={() => {
           loadHazards();

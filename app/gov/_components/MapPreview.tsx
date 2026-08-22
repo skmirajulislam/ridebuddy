@@ -64,7 +64,7 @@ export default function MapPreview({
         border: 2.5px solid white;
         box-shadow: 0 0 8px ${color}88, 0 2px 6px rgba(0,0,0,.4);
       `;
-      new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+      new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map);
     });
 
     mapRef.current = map;

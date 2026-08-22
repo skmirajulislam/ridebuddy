@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "../_components/Header";
 import MapView from "../_components/MapView";
@@ -57,6 +57,30 @@ function GovMapContent() {
       }
     }
   }, [targetId, targetLat, targetLng, hazards]);
+
+  // Obtain live device location on mount
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLoc({ lng: pos.coords.longitude, lat: pos.coords.latitude });
+        },
+        (err) => {
+          console.warn("Could not retrieve official's GPS position:", err);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      );
+    }
+  }, []);
+
+  const handleUserLocate = useCallback((lng: number, lat: number) => {
+    setUserLoc((prev) => {
+      if (prev && Math.abs(prev.lng - lng) < 0.00001 && Math.abs(prev.lat - lat) < 0.00001) {
+        return prev;
+      }
+      return { lng, lat };
+    });
+  }, []);
 
   const nearestHazards = useMemo(() => {
     if (!userLoc || hazards.length === 0) return [];
@@ -130,7 +154,7 @@ function GovMapContent() {
             selectedId={selected?.id ?? null}
             onSelect={setSelected}
             height="calc(100vh - 168px)"
-            onUserLocate={(lng, lat) => setUserLoc({ lng, lat })}
+            onUserLocate={handleUserLocate}
           />
 
           {/* Nearest Hazards Overlay */}
@@ -140,10 +164,11 @@ function GovMapContent() {
                 position: "absolute",
                 bottom: "40px",
                 left: "20px",
-                background: "white",
+                background: "var(--gov-surface)",
+                border: "1px solid var(--gov-border)",
                 padding: "16px",
                 borderRadius: "12px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                boxShadow: "var(--shadow-md)",
                 zIndex: 10,
                 width: "300px",
               }}
