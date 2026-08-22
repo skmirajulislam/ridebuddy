@@ -554,52 +554,101 @@ export default function Map() {
         // fallback
       }
 
-      const hobbiesSnippet = Array.isArray(hobbiesList) && hobbiesList.length > 0
-        ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
-            ${hobbiesList.slice(0, 3).map(h => `<span style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:500">${h}</span>`).join("")}
-           </div>`
-        : "";
+      const popupEl = document.createElement("div");
+      popupEl.style.cssText = "padding:14px 16px;font-family:system-ui,sans-serif;background:rgba(15,23,42,0.96);border-radius:14px;color:#f8fafc";
 
-      const avatarHtml = reporterAvatar
-        ? `<img src="${reporterAvatar}" alt="${reporterName}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1.5px solid #38bdf8" />`
-        : `<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0284c7,#6366f1);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1.5px solid #38bdf8">${reporterName[0]?.toUpperCase()}</div>`;
+      // Header row
+      const headerRow = document.createElement("div");
+      headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px";
+
+      const leftHeader = document.createElement("div");
+      leftHeader.style.cssText = "display:flex;align-items:center;gap:6px";
+      const dotSpan = document.createElement("span");
+      dotSpan.style.cssText = `width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0`;
+      const typeStrong = document.createElement("strong");
+      typeStrong.style.cssText = "color:#fff;font-size:14px;text-transform:capitalize";
+      typeStrong.textContent = String(props.type || "Hazard");
+      leftHeader.appendChild(dotSpan);
+      leftHeader.appendChild(typeStrong);
+
+      const sevBadge = document.createElement("span");
+      sevBadge.style.cssText = `background:${color}22;color:${color};border:1px solid ${color}55;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700`;
+      sevBadge.textContent = severityLabel;
+
+      headerRow.appendChild(leftHeader);
+      headerRow.appendChild(sevBadge);
+      popupEl.appendChild(headerRow);
+
+      // Contributor Profile Button
+      const contributorBtn = document.createElement("div");
+      contributorBtn.id = `contributor-btn-${props.id}`;
+      contributorBtn.style.cssText = "margin-top:10px;padding:8px 10px;background:rgba(30,41,59,0.8);border:1px solid rgba(56,189,248,0.25);border-radius:10px;cursor:pointer;transition:all 0.2s";
+      contributorBtn.title = "Click to view full contributor profile";
+
+      contributorBtn.addEventListener("click", () => {
+        if (typeof window !== "undefined" && (window as unknown as { __openContributorModal?: (h: string, d?: unknown) => void }).__openContributorModal) {
+          (window as unknown as { __openContributorModal: (h: string, d?: unknown) => void }).__openContributorModal(
+            reporterHandle,
+            {
+              name: reporterName,
+              handle: reporterHandle,
+              avatar_url: reporterAvatar,
+              bio: reporterBio,
+              hobbies: hobbiesList,
+            }
+          );
+        }
+      });
+
+      const profileRow = document.createElement("div");
+      profileRow.style.cssText = "display:flex;align-items:center;gap:8px";
+
+      if (reporterAvatar && (reporterAvatar.startsWith("https://") || reporterAvatar.startsWith("http://") || reporterAvatar.startsWith("data:image/") || reporterAvatar.startsWith("blob:"))) {
+        const img = document.createElement("img");
+        img.src = reporterAvatar;
+        img.alt = reporterName;
+        img.style.cssText = "width:28px;height:28px;border-radius:50%;object-fit:cover;border:1.5px solid #38bdf8";
+        profileRow.appendChild(img);
+      } else {
+        const initialDiv = document.createElement("div");
+        initialDiv.style.cssText = "width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0284c7,#6366f1);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1.5px solid #38bdf8";
+        initialDiv.textContent = reporterName[0]?.toUpperCase() || "R";
+        profileRow.appendChild(initialDiv);
+      }
+
+      const nameCol = document.createElement("div");
+      nameCol.style.cssText = "min-width:0;flex:1";
+
+      const nameDiv = document.createElement("div");
+      nameDiv.style.cssText = "font-size:12px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+      nameDiv.textContent = reporterName;
+
+      const handleDiv = document.createElement("div");
+      handleDiv.style.cssText = "font-size:11px;color:#38bdf8;font-family:monospace;font-weight:600";
+      handleDiv.textContent = `@${reporterHandle.replace(/^@/, "")}`;
+
+      nameCol.appendChild(nameDiv);
+      nameCol.appendChild(handleDiv);
+      profileRow.appendChild(nameCol);
+      contributorBtn.appendChild(profileRow);
+
+      if (Array.isArray(hobbiesList) && hobbiesList.length > 0) {
+        const hobbiesWrapper = document.createElement("div");
+        hobbiesWrapper.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-top:6px";
+        hobbiesList.slice(0, 3).forEach((h) => {
+          const hSpan = document.createElement("span");
+          hSpan.style.cssText = "background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:500";
+          hSpan.textContent = String(h);
+          hobbiesWrapper.appendChild(hSpan);
+        });
+        contributorBtn.appendChild(hobbiesWrapper);
+      }
+
+      popupEl.appendChild(contributorBtn);
 
       activePopup.current = new maplibregl.Popup({ offset: 16, maxWidth: "260px", className: "hazard-radar-popup" })
         .setLngLat(coords)
-        .setHTML(
-          `<div style="padding:14px 16px;font-family:system-ui,sans-serif;background:rgba(15,23,42,0.96);border-radius:14px;color:#f8fafc">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
-              <div style="display:flex;align-items:center;gap:6px">
-                <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
-                <strong style="color:#fff;font-size:14px;text-transform:capitalize">${props.type}</strong>
-              </div>
-              <span style="background:${color}22;color:${color};border:1px solid ${color}55;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">
-                ${severityLabel}
-              </span>
-            </div>
-
-            <!-- Contributor Profile Badge -->
-            <div 
-              id="contributor-btn-${props.id}"
-              onclick="window.__openContributorModal && window.__openContributorModal('${reporterHandle}', { name: '${reporterName.replace(/'/g, "\\'")}', handle: '${reporterHandle}', avatar_url: '${reporterAvatar}', bio: '${reporterBio.replace(/'/g, "\\'")}', hobbies: ${JSON.stringify(hobbiesList)} })"
-              style="margin-top:10px;padding:8px 10px;background:rgba(30,41,59,0.8);border:1px solid rgba(56,189,248,0.25);border-radius:10px;cursor:pointer;transition:all 0.2s"
-              title="Click to view full contributor profile"
-            >
-              <div style="display:flex;align-items:center;gap:8px">
-                ${avatarHtml}
-                <div style="min-width:0;flex:1">
-                  <div style="font-size:12px;font-weight:700;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                    ${reporterName}
-                  </div>
-                  <div style="font-size:11px;color:#38bdf8;font-family:monospace;font-weight:600">
-                    @${reporterHandle.replace(/^@/, '')}
-                  </div>
-                </div>
-              </div>
-              ${hobbiesSnippet}
-            </div>
-          </div>`
-        )
+        .setDOMContent(popupEl)
         .addTo(m);
     });
 

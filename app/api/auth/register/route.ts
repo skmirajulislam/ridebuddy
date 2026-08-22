@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (typeof email !== "string" || email.length > 254 || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
       return NextResponse.json(
         { error: "Please enter a valid email address." },
         { status: 400 }

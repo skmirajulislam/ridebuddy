@@ -89,8 +89,27 @@ function getBoundingBox(coords: [number, number][]) {
   return { minLat, maxLat, minLng, maxLng };
 }
 
+function validateAndFormatCoordinate(coordStr: string): string {
+  if (typeof coordStr !== "string") {
+    throw new Error("Invalid coordinate input.");
+  }
+  const trimmed = coordStr.trim();
+  const parts = trimmed.split(",");
+  if (parts.length !== 2) {
+    throw new Error("Invalid coordinate format. Expected 'lng,lat'.");
+  }
+  const lng = Number(parts[0]);
+  const lat = Number(parts[1]);
+  if (!Number.isFinite(lng) || !Number.isFinite(lat) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new Error("Coordinates are out of valid geographical range.");
+  }
+  return `${encodeURIComponent(String(lng))},${encodeURIComponent(String(lat))}`;
+}
+
 export async function getRoute(from: string, to: string): Promise<RankedRouteResult> {
-  const url = `https://router.project-osrm.org/route/v1/driving/${from};${to}?alternatives=true&overview=full&geometries=geojson&steps=true&annotations=true`;
+  const safeFrom = validateAndFormatCoordinate(from);
+  const safeTo = validateAndFormatCoordinate(to);
+  const url = `https://router.project-osrm.org/route/v1/driving/${safeFrom};${safeTo}?alternatives=true&overview=full&geometries=geojson&steps=true&annotations=true`;
 
   console.log("[Routing] Requesting OSRM:", url);
   const response = await axios.get(url);

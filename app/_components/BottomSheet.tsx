@@ -55,6 +55,20 @@ const SEVERITY_LEVELS = [
 
 const STEP_LABELS = ["Hazard type", "Capture image", "Confirm location", "Submit"];
 
+function getSafeImageUrl(url: string | null): string | undefined {
+  if (!url || typeof url !== "string") return undefined;
+  const trimmed = url.trim();
+  if (
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:image/") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("http://")
+  ) {
+    return trimmed;
+  }
+  return undefined;
+}
+
 interface BottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
@@ -535,11 +549,11 @@ export default function BottomSheet({
                         </button>
                       </div>
                     </div>
-                  ) : imagePreviewUrl ? (
+                  ) : getSafeImageUrl(imagePreviewUrl) ? (
                     <div className="camera-preview">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={imagePreviewUrl}
+                        src={getSafeImageUrl(imagePreviewUrl)}
                         alt="Hazard preview"
                         className="camera-preview__img"
                       />
@@ -739,10 +753,10 @@ export default function BottomSheet({
                       <p className="bottom-sheet__section-label">Ready to submit</p>
 
                       {/* Thumbnail preview */}
-                      {imagePreviewUrl && (
+                      {getSafeImageUrl(imagePreviewUrl) && (
                         <div className="final-preview relative rounded-xl overflow-hidden mb-3">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={imagePreviewUrl} alt="Hazard" className="final-preview__img w-full h-36 object-cover" />
+                          <img src={getSafeImageUrl(imagePreviewUrl)} alt="Hazard" className="final-preview__img w-full h-36 object-cover" />
                           <div className="final-preview__badge flex items-center gap-1.5 absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-700/60 capitalize">
                             <SelectedIcon className="w-3.5 h-3.5" style={{ color: selectedHazardConfig.color }} />
                             <span>{type}</span>
