@@ -132,7 +132,7 @@ export default function ImageLightboxModal({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "14px 20px",
-            minWidth: "340px",
+            width: "100%",
             borderBottom: "1px solid var(--gov-border, rgba(255, 255, 255, 0.1))",
             background: "var(--gov-surface2, rgba(255, 255, 255, 0.03))",
             gap: "16px",
@@ -175,27 +175,9 @@ export default function ImageLightboxModal({
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
                 }}
               >
-                <span>{title}</span>
-                {isZoomActive && (
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      padding: "2px 7px",
-                      borderRadius: "999px",
-                      background: "rgba(0, 204, 255, 0.2)",
-                      border: "1px solid rgba(0, 204, 255, 0.4)",
-                      color: "#38bdf8",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Loupe 2.8x Active
-                  </span>
-                )}
+                {title}
               </div>
               {subtitle && (
                 <div
