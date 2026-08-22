@@ -4,12 +4,13 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow, format } from "date-fns";
-import { X, Play, CheckCircle2, RotateCcw, MapPin, ExternalLink, Navigation, FileText } from "lucide-react";
+import { X, Play, CheckCircle2, RotateCcw, MapPin, ExternalLink, Navigation, FileText, ZoomIn } from "lucide-react";
 import type { Hazard } from "../_services/api";
 import { useUpdateStatus } from "../_hooks/useHazards";
 import { StatusBadge } from "./DataTable";
 import MapPreview from "./MapPreview";
 import WorkOrderModal from "./WorkOrderModal";
+import ImageLightboxModal from "./ImageLightboxModal";
 
 interface HazardPanelProps {
   hazard: Hazard | null;
@@ -22,6 +23,7 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
   const router = useRouter();
   const { mutate: updateStatus, isPending } = useUpdateStatus();
   const [workOrderOpen, setWorkOrderOpen] = useState(false);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
 
   const act = (status: Hazard["status"]) => {
     if (!hazard) return;
@@ -48,17 +50,57 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
           </div>
 
           <div className="hazard-panel__body">
-            {/* Photo Evidence if available */}
+            {/* Photo Evidence if available - Clickable to open full image popup */}
             {hazard.image_url && (
-              <div style={{ borderRadius: "8px", overflow: "hidden", border: "1px solid var(--gov-border)" }}>
+              <div
+                onClick={() => setImageModalOpen(true)}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "180px",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  border: "1px solid var(--gov-border)",
+                  cursor: "pointer",
+                }}
+                className="group"
+                title="Click to view full photo evidence"
+              >
                 <Image
                   src={hazard.image_url}
                   alt="Hazard photo"
-                  width={400}
-                  height={200}
+                  fill
                   unoptimized
-                  style={{ width: "100%", maxHeight: "200px", objectFit: "cover", display: "block" }}
+                  sizes="(max-width: 768px) 100vw, 400px"
+                  style={{
+                    objectFit: "cover",
+                    display: "block",
+                    transition: "transform 0.2s ease",
+                  }}
                 />
+
+                {/* Hover overlay banner */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "rgba(0, 0, 0, 0.4)",
+                    opacity: 0,
+                    transition: "opacity 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    color: "#fff",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
+                >
+                  <ZoomIn className="w-4 h-4 text-sky-400" />
+                  <span>Click to view complete image</span>
+                </div>
               </div>
             )}
 
@@ -260,6 +302,17 @@ export default function HazardPanel({ hazard, onClose }: HazardPanelProps) {
         onClose={() => setWorkOrderOpen(false)}
         hazard={hazard}
       />
+
+      {/* Full Resolution Photo Lightbox Modal */}
+      {hazard && hazard.image_url && (
+        <ImageLightboxModal
+          isOpen={imageModalOpen}
+          onClose={() => setImageModalOpen(false)}
+          imageUrl={hazard.image_url}
+          title={`${hazard.type.charAt(0).toUpperCase() + hazard.type.slice(1)} Photo Evidence • Hazard #${hazard.id}`}
+          subtitle={`Reported at [${hazard.lat.toFixed(6)}, ${hazard.lng.toFixed(6)}] • Severity Level ${hazard.severity}`}
+        />
+      )}
     </div>
   );
 }

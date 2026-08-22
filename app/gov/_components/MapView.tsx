@@ -133,6 +133,7 @@ export default function MapView({
 
     const styleSpec = getGovMapStyle(theme, MAPTILER_KEY);
     map.setStyle(styleSpec, {
+      diff: false,
       transformStyle: (_prev, next) => ({
         ...next,
         projection: next.projection ?? { type: "mercator" },
@@ -165,22 +166,31 @@ export default function MapView({
 
       // Center on official's live device GPS location on initial load if no specific hazard is selected
       if (!selectedIdRef.current && typeof navigator !== "undefined" && navigator.geolocation) {
+        const handleLocateSuccess = (pos: GeolocationPosition) => {
+          const { longitude, latitude } = pos.coords;
+          onUserLocateRef.current?.(longitude, latitude);
+          if (mapRef.current && !selectedIdRef.current) {
+            mapRef.current.flyTo({
+              center: [longitude, latitude],
+              zoom: 15,
+              duration: 900,
+            });
+          }
+        };
+
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const { longitude, latitude } = pos.coords;
-            onUserLocateRef.current?.(longitude, latitude);
-            if (mapRef.current && !selectedIdRef.current) {
-              mapRef.current.flyTo({
-                center: [longitude, latitude],
-                zoom: 15,
-                duration: 900,
-              });
-            }
+          handleLocateSuccess,
+          () => {
+            // High-accuracy GPS timed out/indoor fallback: try standard network/IP geolocation
+            navigator.geolocation.getCurrentPosition(
+              handleLocateSuccess,
+              () => {
+                // Device location completely unavailable or permission not yet given
+              },
+              { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+            );
           },
-          (err) => {
-            console.warn("Could not get initial live GPS location:", err);
-          },
-          { enableHighAccuracy: true, timeout: 8000 }
+          { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
         );
       }
     });
@@ -209,6 +219,7 @@ export default function MapView({
 
     const styleSpec = getGovMapStyle(newTheme, MAPTILER_KEY);
     mapRef.current.setStyle(styleSpec, {
+      diff: false,
       transformStyle: (_prev, next) => ({
         ...next,
         projection: next.projection ?? { type: "mercator" },

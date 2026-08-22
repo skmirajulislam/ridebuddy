@@ -337,14 +337,15 @@ export default function WorkOrderModal({ isOpen, onClose, hazard }: WorkOrderMod
                   background: "#000",
                 }}
               >
-                <Image
-                  src={hazard.image_url}
-                  alt="Hazard Evidence"
-                  width={600}
-                  height={300}
-                  unoptimized
-                  style={{ maxHeight: "220px", width: "auto", objectFit: "contain" }}
-                />
+                <div style={{ position: "relative", width: "100%", height: "220px" }}>
+                  <Image
+                    src={hazard.image_url}
+                    alt="Hazard Evidence"
+                    fill
+                    unoptimized
+                    style={{ objectFit: "contain" }}
+                  />
+                </div>
               </div>
             </div>
           )}

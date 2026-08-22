@@ -38,6 +38,11 @@ export interface Hazard {
   resolved_by_user_id: number | null;
   user_id: number | null;
   image_url?: string | null;
+  reporter_name?: string | null;
+  reporter_handle?: string | null;
+  reporter_avatar?: string | null;
+  reporter_bio?: string | null;
+  reporter_hobbies?: string[];
 }
 
 export interface GovStats {

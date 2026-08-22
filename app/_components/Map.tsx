@@ -434,7 +434,7 @@ export default function Map() {
     if (!map.current) return;
 
     const styleSpec = getMapStyle(newTheme, apiKey);
-    map.current.setStyle(styleSpec);
+    map.current.setStyle(styleSpec, { diff: false });
     map.current.once("style.load", () => {
       initHazardLayer();
       loadHazards();
@@ -457,6 +457,7 @@ export default function Map() {
     const defaultStyle = getMapStyle(mapTheme, apiKey);
 
     map.current.setStyle(defaultStyle, {
+      diff: false,
       transformStyle: (_prev, next) => ({
         ...next,
         projection: next.projection ?? { type: "mercator" },

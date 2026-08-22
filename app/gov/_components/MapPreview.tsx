@@ -47,6 +47,7 @@ export default function MapPreview({
 
     const styleSpec = getGovMapStyle("streets", MAPTILER_KEY);
     map.setStyle(styleSpec, {
+      diff: false,
       transformStyle: (_prev, next) => ({
         ...next,
         projection: next.projection ?? { type: "mercator" },

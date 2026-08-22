@@ -1683,6 +1683,7 @@ body {
 }
 .camera-preview__img {
 	width: 100%;
+	height: auto;
 	max-height: 200px;
 	object-fit: cover;
 	display: block;
@@ -1770,6 +1771,7 @@ body {
 }
 .final-preview__img {
 	width: 100%;
+	height: auto;
 	max-height: 140px;
 	object-fit: cover;
 	display: block;

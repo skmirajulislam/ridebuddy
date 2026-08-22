@@ -61,14 +61,21 @@ function GovMapContent() {
   // Obtain live device location on mount
   useEffect(() => {
     if (typeof navigator !== "undefined" && navigator.geolocation) {
+      const handleSuccess = (pos: GeolocationPosition) => {
+        setUserLoc({ lng: pos.coords.longitude, lat: pos.coords.latitude });
+      };
+
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLoc({ lng: pos.coords.longitude, lat: pos.coords.latitude });
+        handleSuccess,
+        () => {
+          // Fallback to standard geolocation if satellite high-accuracy times out
+          navigator.geolocation.getCurrentPosition(
+            handleSuccess,
+            () => {},
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+          );
         },
-        (err) => {
-          console.warn("Could not retrieve official's GPS position:", err);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
       );
     }
   }, []);
