@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import { unlockMobileAudioAndSpeech } from "@/lib/utils/audioUnlock";
 
 export default function ServiceWorkerRegistration() {
   useEffect(() => {
+    // Unlock mobile audio autoplay restrictions on first user tap/touch anywhere
+    unlockMobileAudioAndSpeech();
+
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
     // In development mode, unregister any existing service workers and clear caches to prevent stale bundle caching

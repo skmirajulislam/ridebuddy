@@ -38,36 +38,7 @@ export function calculateAccurateDistance(
   return R * c;
 }
 
-// Gentle 2-tone melodic alert chime using Web Audio API
-function playAlertChime() {
-  try {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(587.33, now); // D5
-    osc.frequency.setValueAtTime(880.0, now + 0.1); // A5
-
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.exponentialRampToValueAtTime(0.2, now + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.35);
-  } catch {
-    // AudioContext might be restricted until user interacts
-  }
-}
+import { unlockMobileAudioAndSpeech, speakText, playHazardChime } from "@/lib/utils/audioUnlock";
 
 export function useHazardAudioAlerts({
   userLat,
@@ -97,8 +68,10 @@ export function useHazardAudioAlerts({
   const minDistanceSeenRef = useRef<Map<string | number, number>>(new Map());
   const dismissTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Prevent speech synthesis garbage collection mid-utterance
-  const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Ensure audio gesture unlock is initialized for smartphones/tablets
+  useEffect(() => {
+    unlockMobileAudioAndSpeech();
+  }, []);
 
   const onAlertTriggerRef = useRef(onAlertTrigger);
   useEffect(() => {
@@ -121,49 +94,7 @@ export function useHazardAudioAlerts({
   }, []);
 
   const speakAlert = useCallback((text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-
-    try {
-      playAlertChime();
-
-      setTimeout(() => {
-        try {
-          window.speechSynthesis.cancel();
-
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 1.0;
-          utterance.pitch = 1.0;
-          utterance.volume = 1.0;
-
-          // Pick natural English voice if available
-          const voices = window.speechSynthesis.getVoices();
-          const preferredVoice = voices.find(
-            (v) =>
-              v.lang.startsWith("en") &&
-              (v.name.includes("Natural") ||
-                v.name.includes("Google") ||
-                v.name.includes("Samantha") ||
-                v.name.includes("Daniel") ||
-                v.name.includes("Karen"))
-          );
-          if (preferredVoice) utterance.voice = preferredVoice;
-
-          utterance.onend = () => {
-            activeUtteranceRef.current = null;
-          };
-          utterance.onerror = () => {
-            activeUtteranceRef.current = null;
-          };
-
-          activeUtteranceRef.current = utterance;
-          window.speechSynthesis.speak(utterance);
-        } catch (speechErr) {
-          console.warn("[AudioAlerts] Speech utterance error:", speechErr);
-        }
-      }, 180);
-    } catch (err) {
-      console.warn("[AudioAlerts] Speech synthesis failure:", err);
-    }
+    speakText(text, { rate: 1.0, pitch: 1.0 });
   }, []);
 
   // Monitor user location relative to hazards dynamically on every GPS tick
@@ -294,7 +225,7 @@ export function useHazardAudioAlerts({
       // Milestone 3: Passing chime (<= 6m)
       else if (exactDistance <= 6 && !hazardMilestones.has("passing")) {
         hazardMilestones.add("passing");
-        playAlertChime();
+        playHazardChime();
       }
     }
   }, [userLat, userLng, speed, hazards, isEnabled, warningRadiusMeters, speakAlert]);

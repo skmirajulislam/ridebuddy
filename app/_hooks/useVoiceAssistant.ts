@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 
+import { unlockMobileAudioAndSpeech, speakText } from "@/lib/utils/audioUnlock";
+
 interface SpeechRecognitionEvent {
   resultIndex: number;
   results: {
@@ -56,30 +58,17 @@ export function useVoiceAssistant({
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const shouldListenRef = useRef(false);
 
+  useEffect(() => {
+    unlockMobileAudioAndSpeech();
+  }, []);
+
   // Text-To-Speech Co-Pilot
   const speak = useCallback(
     (text: string, priority = false) => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window) || !voiceEnabled) {
-        return;
-      }
-
-      try {
-        if (priority) {
-          window.speechSynthesis.cancel();
-        }
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.05;
-        utterance.pitch = 1.0;
-
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        setIsSpeaking(false);
-      }
+      if (!voiceEnabled) return;
+      setIsSpeaking(true);
+      speakText(text, { priority, rate: 1.05, pitch: 1.0 });
+      setTimeout(() => setIsSpeaking(false), 2000);
     },
     [voiceEnabled]
   );

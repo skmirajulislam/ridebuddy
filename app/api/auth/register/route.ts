@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const user = result.rows[0];
     const token = generateToken(user);
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         token,
         user: {
@@ -75,6 +75,20 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
+
+    // Set redundant persistent cookies for seamless PWA & mobile session retention
+    response.cookies.set("token", token, {
+      path: "/",
+      maxAge: 7 * 24 * 3600,
+      sameSite: "lax",
+    });
+    response.cookies.set("rb_token", token, {
+      path: "/",
+      maxAge: 7 * 24 * 3600,
+      sameSite: "lax",
+    });
+
+    return response;
   } catch (err: unknown) {
     console.error("[Auth] Register error:", (err as Error).message);
     return NextResponse.json(

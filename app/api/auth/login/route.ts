@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const token = generateToken({ ...user, handle });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       token,
       user: {
         id: user.id,
@@ -60,6 +60,20 @@ export async function POST(req: NextRequest) {
         hobbies: Array.isArray(user.hobbies) ? user.hobbies : [],
       },
     });
+
+    // Set redundant persistent cookies for seamless PWA & mobile session retention
+    response.cookies.set("token", token, {
+      path: "/",
+      maxAge: 7 * 24 * 3600,
+      sameSite: "lax",
+    });
+    response.cookies.set("rb_token", token, {
+      path: "/",
+      maxAge: 7 * 24 * 3600,
+      sameSite: "lax",
+    });
+
+    return response;
   } catch (err: unknown) {
     console.error("[Auth] Login error:", (err as Error).message);
     return NextResponse.json(

@@ -2014,11 +2014,6 @@ export default function Map() {
                   <button
                     className={`search-panel__loc-btn flex items-center justify-center ${mapPickTarget === 'to' ? 'active' : ''}`}
                     onClick={() => {
-                      if (!user) {
-                        toast.info("Please sign in or register to pick destination on the map");
-                        setAuthModalOpen(true);
-                        return;
-                      }
                       setMapPickTarget(mapPickTarget === 'to' ? null : 'to');
                     }}
                     title={mapPickTarget === 'to' ? "Click map to set Destination" : "Pick Destination on map"}
@@ -2152,11 +2147,6 @@ export default function Map() {
             {/* Monsoon Weather Radar Toggle */}
             <button
               onClick={() => {
-                if (!user) {
-                  toast.info("Please sign in or register to access Live Monsoon Rain Radar");
-                  setAuthModalOpen(true);
-                  return;
-                }
                 setWeatherRadarEnabled(!weatherRadarEnabled);
               }}
               style={{
@@ -2183,11 +2173,6 @@ export default function Map() {
             {/* City Leaderboard Button */}
             <button
               onClick={() => {
-                if (!user) {
-                  toast.info("Please sign in or register to view Rider Rankings & Leaderboard");
-                  setAuthModalOpen(true);
-                  return;
-                }
                 setLeaderboardModalOpen(true);
               }}
               style={{
@@ -2289,11 +2274,6 @@ export default function Map() {
             {/* Offline Map Pack Button */}
             <button
               onClick={() => {
-                if (!user) {
-                  toast.info("Please sign in or register to download Offline Highway Map Packs");
-                  setAuthModalOpen(true);
-                  return;
-                }
                 setOfflineModalOpen(true);
               }}
               style={{
@@ -2318,11 +2298,6 @@ export default function Map() {
             {/* Map Theme Toggle (Dark / Satellite / Neon Fog HUD) */}
             <button
               onClick={() => {
-                if (!user) {
-                  toast.info("Please sign in or register to customize map styles & HUD themes");
-                  setAuthModalOpen(true);
-                  return;
-                }
                 const nextTheme = mapTheme === "dark" ? "satellite" : mapTheme === "satellite" ? "neon_fog" : "dark";
                 handleThemeChange(nextTheme);
               }}

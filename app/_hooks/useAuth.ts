@@ -55,6 +55,12 @@ function notifyAuthChange() {
   }
 }
 
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
 export function getInitialAuthState(): { user: AuthUser | null; idToken: string | null } {
   if (typeof window === "undefined") {
     return { user: null, idToken: null };
@@ -64,7 +70,9 @@ export function getInitialAuthState(): { user: AuthUser | null; idToken: string 
       localStorage.getItem(TOKEN_KEY) ||
       sessionStorage.getItem(TOKEN_KEY) ||
       localStorage.getItem("gov_token") ||
-      sessionStorage.getItem("gov_token");
+      sessionStorage.getItem("gov_token") ||
+      getCookie(TOKEN_KEY) ||
+      getCookie("token");
 
     const storedUser =
       localStorage.getItem(USER_KEY) ||
@@ -72,8 +80,8 @@ export function getInitialAuthState(): { user: AuthUser | null; idToken: string 
       localStorage.getItem("gov_user") ||
       sessionStorage.getItem("gov_user");
 
-    if (storedToken && storedUser) {
-      return { user: JSON.parse(storedUser), idToken: storedToken };
+    if (storedUser) {
+      return { user: JSON.parse(storedUser), idToken: storedToken || null };
     }
   } catch {
     // Storage access error — fallback
@@ -86,16 +94,39 @@ export function useAuth(): AuthState {
   const [idToken, setIdToken] = useState<string | null>(() => getInitialAuthState().idToken);
   const [loading, setLoading] = useState(false);
 
-  // Sync state whenever auth changes across any component or tab
+  // Sync state whenever auth changes across any component, PWA resume, or tab
   useEffect(() => {
     const syncState = () => {
       const current = getInitialAuthState();
-      setUser(current.user);
-      setIdToken(current.idToken);
+      if (current.user) {
+        setUser(current.user);
+        setIdToken(current.idToken);
+      }
     };
 
-    // Run initial sync on mount (handles SSR hydration sync)
+    // Run initial sync on mount
     syncState();
+
+    // Verify and re-hydrate session with /api/auth/me if token exists
+    const currentToken = getInitialAuthState().idToken || getCookie("token") || getCookie(TOKEN_KEY);
+    if (currentToken) {
+      fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((freshUser) => {
+          if (freshUser && freshUser.id) {
+            try {
+              localStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+              sessionStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+            } catch {
+              // ignore
+            }
+            setUser(freshUser);
+          }
+        })
+        .catch(() => {});
+    }
 
     window.addEventListener(AUTH_EVENT, syncState);
     window.addEventListener("storage", syncState);
@@ -112,6 +143,10 @@ export function useAuth(): AuthState {
       localStorage.setItem(USER_KEY, JSON.stringify(userData));
       sessionStorage.setItem(TOKEN_KEY, token);
       sessionStorage.setItem(USER_KEY, JSON.stringify(userData));
+      if (typeof document !== "undefined") {
+        document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+      }
       if (userData.role === "official") {
         localStorage.setItem("gov_token", token);
         localStorage.setItem("gov_user", JSON.stringify(userData));

@@ -61,12 +61,21 @@ export function verifyJwtToken(token: string): TokenPayload | null {
  * Returns AuthenticatedUser or null
  */
 export function getAuthUser(req: NextRequest): AuthenticatedUser | null {
+  let token: string | null = null;
+
   const authHeader = req.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return null;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split("Bearer ")[1]?.trim() || null;
   }
 
-  const token = authHeader.split("Bearer ")[1]?.trim();
+  if (!token) {
+    token =
+      req.cookies.get("token")?.value ||
+      req.cookies.get("rb_token")?.value ||
+      req.cookies.get("gov_token")?.value ||
+      null;
+  }
+
   if (!token) return null;
 
   const decoded = verifyJwtToken(token);
