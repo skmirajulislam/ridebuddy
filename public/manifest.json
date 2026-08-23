@@ -1,20 +1,72 @@
 {
-  "name": "RideBuddy",
+  "id": "com.ridebuddy.app",
+  "name": "RideBuddy — Community Hazard Navigation",
   "short_name": "RideBuddy",
-  "description": "Safe navigation with real-time community hazard alerts",
+  "description": "Safe two-wheeler navigation with real-time community road hazard alerts, voice logging, and municipal repair verification.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "orientation": "portrait-primary",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["navigation", "travel", "utilities", "safety"],
+  "prefer_related_applications": false,
   "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
-  "categories": ["navigation", "travel", "utilities"],
-  "lang": "en"
+  "shortcuts": [
+    {
+      "name": "Report Hazard",
+      "short_name": "Report",
+      "description": "Quickly report a road hazard at your location",
+      "url": "/?action=report",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "GovOps Dashboard",
+      "short_name": "GovOps",
+      "description": "Official municipal road repair and analytics dashboard",
+      "url": "/gov",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Monsoon Risk AI",
+      "short_name": "Monsoon AI",
+      "description": "Pre-Monsoon road vulnerability and deterioration intelligence",
+      "url": "/gov/analytics",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

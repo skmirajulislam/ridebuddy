@@ -34,6 +34,7 @@ import SquadModal from "./SquadModal";
 import LeaderboardModal from "./LeaderboardModal";
 import EmergencySOSModal from "./EmergencySOSModal";
 import OfflineMapPackModal from "./OfflineMapPackModal";
+import PWAInstallButton from "./PWAInstallButton";
 import type { SquadDetails } from "@/lib/services/squad.service";
 
 import {
@@ -2110,6 +2111,9 @@ export default function Map() {
                 setVoiceEnabled(!voiceEnabled);
               }}
             />
+
+            {/* PWA 1-Tap Install Button */}
+            <PWAInstallButton />
 
             <div style={{ width: "1px", height: "22px", background: "rgba(255, 255, 255, 0.15)", flexShrink: 0 }} />
 

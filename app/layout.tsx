@@ -16,10 +16,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  applicationName: "RideBuddy",
   title: "RideBuddy — Safe Navigation with Hazard Alerts",
   description:
     "RideBuddy helps you navigate safely by showing real-time road hazards reported by the community. Avoid potholes, floods, accidents, and road blocks on your route.",
-  keywords: ["road hazard", "navigation", "pothole", "safe route", "community reporting"],
+  keywords: ["road hazard", "navigation", "pothole", "safe route", "community reporting", "PWA"],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -27,8 +28,14 @@ export const metadata: Metadata = {
     title: "RideBuddy",
   },
   icons: {
-    icon: "/icons/icon.svg",
-    apple: "/icons/icon.svg",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 

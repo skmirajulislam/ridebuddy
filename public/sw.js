@@ -4,7 +4,15 @@ const STATIC_CACHE = `ridebuddy-static-${CACHE_VERSION}`;
 const TILE_CACHE = `ridebuddy-tiles-${CACHE_VERSION}`;
 const API_CACHE = `ridebuddy-api-${CACHE_VERSION}`;
 
-const STATIC_ASSETS = ["/manifest.json", "/icons/icon.svg"];
+const STATIC_ASSETS = [
+  "/manifest.json",
+  "/icons/icon.svg",
+  "/icons/icon-192.png",
+  "/icons/icon-384.png",
+  "/icons/icon-512.png",
+  "/icons/icon-180.png",
+  "/icons/icon-maskable-512.png"
+];
 
 const TILE_ORIGINS = [
   "https://api.maptiler.com",
