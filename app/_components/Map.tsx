@@ -28,6 +28,7 @@ import ProfileModal from "./ProfileModal";
 import ContributorCard from "./ContributorCard";
 import VoiceAssistantHUD from "./VoiceAssistantHUD";
 import VerificationRadarPrompt from "./VerificationRadarPrompt";
+import RepairVerificationPrompt from "./RepairVerificationPrompt";
 import WeatherRadarLayer from "./WeatherRadarLayer";
 import SquadModal from "./SquadModal";
 import LeaderboardModal from "./LeaderboardModal";
@@ -200,8 +201,14 @@ export default function Map() {
     hazard: CachedHazard;
     distance: number;
   } | null>(null);
+  const [repairPromptHazard, setRepairPromptHazard] = useState<{
+    hazard: { id: number; type: string; repair_image_url?: string | null };
+    distance: number;
+  } | null>(null);
 
   const verifiedHazardIdsRef = useRef<Set<number>>(new Set());
+  const verifiedRepairHazardIdsRef = useRef<Set<number>>(new Set());
+  const lastRepairCheckTimeRef = useRef<number>(0);
   const squadMarkersRef = useRef<globalThis.Map<number, maplibregl.Marker>>(new globalThis.Map());
 
   const [isSearchOpen, setIsSearchOpen] = useState(true);
@@ -356,15 +363,22 @@ export default function Map() {
             lat: position.lat,
             lng: position.lng,
             severity: 2,
-            confidence: 0.95,
+            confidence: 0.5,
+            voice_report: true,
           }),
         });
         if (res.ok) {
           loadHazards();
+          speak(`${hazardType} logged at your location. Ride safe!`, true);
           toast.success(`Voice Report logged: ${hazardType}`, { icon: "🎙️" });
+        } else {
+          const err = await res.json().catch(() => null);
+          speak("Voice report could not be saved. Try again.");
+          console.warn("[VoiceReport] API error:", err?.error);
         }
       } catch (e) {
         console.warn("Voice report error:", e);
+        speak("Voice report failed. Check your connection.");
       }
     },
     onVoiceCommand: (cmd) => {
@@ -862,7 +876,29 @@ export default function Map() {
       setVerificationPromptHazard({ hazard: verificationCandidate, distance: dist });
       verifiedHazardIdsRef.current.add(verificationCandidate.id);
     }
-  }, [position, isMapLoaded, hazards, sendNotification, navigation.isActive, speak, verificationPromptHazard]);
+
+    // ── Proof of Repair Prompt Trigger (within 60m of municipal repair) ─────
+    const now = Date.now();
+    if (!repairPromptHazard && !verificationPromptHazard && now - lastRepairCheckTimeRef.current > 8000) {
+      lastRepairCheckTimeRef.current = now;
+      fetch(`/api/hazards/nearby-resolved?lat=${lat}&lng=${lng}&radius=60`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((resolvedHazards: any[]) => {
+          if (Array.isArray(resolvedHazards) && resolvedHazards.length > 0) {
+            const candidate = resolvedHazards.find(
+              (h) => !verifiedRepairHazardIdsRef.current.has(h.id)
+            );
+            if (candidate) {
+              const dist = candidate.distance_meters || haversineDistance(lat, lng, candidate.lat, candidate.lng);
+              setRepairPromptHazard({ hazard: candidate, distance: dist });
+              verifiedRepairHazardIdsRef.current.add(candidate.id);
+              speak("PWD marked a road repair ahead. Confirm fix?", true);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [position, isMapLoaded, hazards, sendNotification, navigation.isActive, speak, verificationPromptHazard, repairPromptHazard]);
 
   // ── Squad Convoy GPS Heartbeat & Marker Sync ──────────────────────────────
   useEffect(() => {
@@ -2549,6 +2585,23 @@ export default function Map() {
               setHazards((prev) => prev.filter((h) => h.id !== hazardId));
             }
             loadHazards();
+          }}
+        />
+      )}
+
+      {/* ── Proof of Repair Citizen Verification Prompt ─────────────────── */}
+      {repairPromptHazard && (
+        <RepairVerificationPrompt
+          hazard={repairPromptHazard.hazard}
+          distanceMeters={repairPromptHazard.distance}
+          onDismiss={() => setRepairPromptHazard(null)}
+          onRequireAuth={() => setAuthModalOpen(true)}
+          onVerified={(hazardId, revertedToActive) => {
+            setRepairPromptHazard(null);
+            if (revertedToActive) {
+              // Hazard came back as active, refresh active hazards list
+              loadHazards();
+            }
           }}
         />
       )}

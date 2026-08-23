@@ -31,7 +31,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { status } = body;
+    const { status, repair_image_url } = body;
 
     if (!status || !VALID_STATUSES.includes(status)) {
       return NextResponse.json(
@@ -42,7 +42,7 @@ export async function PATCH(
       );
     }
 
-    const updated = await updateHazardStatus(id, status, authUser.userId);
+    const updated = await updateHazardStatus(id, status, authUser.userId, repair_image_url || null);
     if (!updated) {
       return NextResponse.json({ error: "Hazard not found." }, { status: 404 });
     }

@@ -38,6 +38,10 @@ export interface Hazard {
   resolved_by_user_id: number | null;
   user_id: number | null;
   image_url?: string | null;
+  repair_image_url?: string | null;
+  repair_verified?: boolean;
+  repair_verified_at?: string | null;
+  repair_verify_count?: number;
   reporter_name?: string | null;
   reporter_handle?: string | null;
   reporter_avatar?: string | null;
@@ -59,10 +63,10 @@ export const api = {
   /** GET gov stats */
   getStats: () => request<GovStats>("/api/gov/stats"),
 
-  /** PATCH hazard status */
-  updateStatus: (id: number, status: "active" | "in_progress" | "resolved") =>
+  /** PATCH hazard status (with optional repair proof photo) */
+  updateStatus: (id: number, status: "active" | "in_progress" | "resolved", repairImageUrl?: string | null) =>
     request<Hazard>(`/api/hazards/${id}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, repair_image_url: repairImageUrl || undefined }),
     }),
 };

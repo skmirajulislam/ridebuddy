@@ -25,6 +25,10 @@ import {
   Filter,
   Eye,
   CheckCircle,
+  CloudRain,
+  Droplets,
+  Zap,
+  Activity,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
@@ -58,7 +62,7 @@ interface HazardCluster {
 export default function AnalyticsPage() {
   const { data: hazards = [], isLoading, error } = useHazards();
   const [timeRange, setTimeRange] = useState<"all" | "30d" | "7d">("all");
-  const [activeTab, setActiveTab] = useState<"reports" | "clusters">("reports");
+  const [activeTab, setActiveTab] = useState<"reports" | "clusters" | "monsoon">("reports");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"critical" | "id_asc" | "newest" | "oldest">("critical");
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string; subtitle: string } | null>(null);
@@ -287,6 +291,97 @@ export default function AnalyticsPage() {
     clusters.sort((a, b) => b.activeHazards - a.activeHazards || b.totalHazards - a.totalHazards);
     return clusters.slice(0, 10);
   }, [filteredHazards]);
+
+  // ── AI Road Deterioration & Monsoon Risk Intelligence ───────────────────────
+  const monsoonIntelligence = useMemo(() => {
+    if (filteredHazards.length === 0) {
+      return {
+        zones: [],
+        cityVulnerabilityIndex: 0,
+        criticalZoneCount: 0,
+        highRiskZoneCount: 0,
+        averageRQI: 100,
+        monsoonReadiness: "Optimal (All Roads Inspected)",
+      };
+    }
+
+    const zones = dynamicHotspots.map((cluster) => {
+      let potholeCount = 0;
+      let waterLoggingCount = 0;
+      let totalSev = 0;
+
+      cluster.hazards.forEach((h) => {
+        totalSev += h.severity || 1;
+        const typeStr = (h.type || "").toLowerCase();
+        if (typeStr.includes("pothole") || typeStr.includes("bump") || typeStr.includes("broken")) {
+          potholeCount++;
+        }
+        if (typeStr.includes("flood") || typeStr.includes("water") || typeStr.includes("drain")) {
+          waterLoggingCount++;
+        }
+      });
+
+      const avgSeverity = cluster.hazards.length > 0 ? totalSev / cluster.hazards.length : 1;
+      
+      // Calculate Pre-Monsoon Vulnerability Score (0-100)
+      const densityScore = Math.min(35, cluster.totalHazards * 7);
+      const activeRatioScore = (cluster.activeHazards / Math.max(1, cluster.totalHazards)) * 25;
+      const waterPotholeScore = ((potholeCount * 1.0 + waterLoggingCount * 1.5) / Math.max(1, cluster.totalHazards)) * 25;
+      const severityMultiplier = (avgSeverity / 3) * 15;
+
+      const vulnerabilityScore = Math.min(100, Math.round(densityScore + activeRatioScore + waterPotholeScore + severityMultiplier));
+      const rqiScore = Math.max(0, 100 - vulnerabilityScore);
+
+      let riskLevel: "CRITICAL" | "HIGH" | "MODERATE" | "LOW" = "LOW";
+      let recommendedAction = "Routine pre-monsoon surveillance & drain monitoring";
+
+      if (vulnerabilityScore >= 70) {
+        riskLevel = "CRITICAL";
+        recommendedAction = "Immediate cold-mix asphalt overlay & storm-water drain desilting required";
+      } else if (vulnerabilityScore >= 45) {
+        riskLevel = "HIGH";
+        recommendedAction = "Preventive bitumen crack sealing & sub-base reinforcement within 48h";
+      } else if (vulnerabilityScore >= 25) {
+        riskLevel = "MODERATE";
+        recommendedAction = "Scheduled patch repair and side-gutter culvert clearance";
+      }
+
+      return {
+        ...cluster,
+        potholeCount,
+        waterLoggingCount,
+        avgSeverity: Number(avgSeverity.toFixed(1)),
+        vulnerabilityScore,
+        rqiScore,
+        riskLevel,
+        recommendedAction,
+      };
+    });
+
+    zones.sort((a, b) => b.vulnerabilityScore - a.vulnerabilityScore);
+
+    const totalScore = zones.reduce((acc, z) => acc + z.vulnerabilityScore, 0);
+    const cityVulnerabilityIndex = zones.length > 0 ? Math.round(totalScore / zones.length) : 0;
+    const averageRQI = Math.max(0, 100 - cityVulnerabilityIndex);
+    const criticalZoneCount = zones.filter((z) => z.riskLevel === "CRITICAL").length;
+    const highRiskZoneCount = zones.filter((z) => z.riskLevel === "HIGH").length;
+
+    let monsoonReadiness = "Optimal (90%+ Roads Stable)";
+    if (criticalZoneCount > 3 || cityVulnerabilityIndex > 60) {
+      monsoonReadiness = "High Risk of Monsoon Water-Logging & Road Failure";
+    } else if (criticalZoneCount > 0 || highRiskZoneCount > 2) {
+      monsoonReadiness = "Moderate Vulnerability (Targeted Resurfacing Recommended)";
+    }
+
+    return {
+      zones,
+      cityVulnerabilityIndex,
+      criticalZoneCount,
+      highRiskZoneCount,
+      averageRQI,
+      monsoonReadiness,
+    };
+  }, [dynamicHotspots, filteredHazards]);
 
   // Export handlers
   const exportCSV = () => {
@@ -627,6 +722,17 @@ export default function AnalyticsPage() {
               >
                 <span>Spatial Hotspot Clusters ({dynamicHotspots.length})</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab("monsoon")}
+                className={`btn ${activeTab === "monsoon" ? "btn--primary" : "btn--ghost"}`}
+                style={{ padding: "6px 14px", fontSize: "12px", borderRadius: "8px" }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                  <CloudRain className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Monsoon Risk AI ({monsoonIntelligence.zones.length})</span>
+                </span>
+              </button>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -924,7 +1030,7 @@ export default function AnalyticsPage() {
                   )}
                 </tbody>
               </table>
-            ) : (
+            ) : activeTab === "clusters" ? (
               <table className="data-table">
                 <thead>
                   <tr>
@@ -994,6 +1100,180 @@ export default function AnalyticsPage() {
                   )}
                 </tbody>
               </table>
+            ) : (
+              <div>
+                {/* Monsoon Summary Metric Cards */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: "14px",
+                    padding: "16px 20px",
+                    background: "rgba(15, 23, 42, 0.6)",
+                    borderBottom: "1px solid var(--gov-border)",
+                  }}
+                >
+                  <div style={{ padding: "12px", background: "var(--gov-surface2)", borderRadius: "10px", border: "1px solid var(--gov-border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#00ccff", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                      <CloudRain className="w-3.5 h-3.5" />
+                      <span>Pre-Monsoon Vulnerability Index</span>
+                    </div>
+                    <div style={{ fontSize: "22px", fontWeight: 800, color: monsoonIntelligence.cityVulnerabilityIndex > 60 ? "#ef4444" : monsoonIntelligence.cityVulnerabilityIndex > 35 ? "#f59e0b" : "#22c55e", marginTop: "4px" }}>
+                      {monsoonIntelligence.cityVulnerabilityIndex} <span style={{ fontSize: "12px", color: "var(--gov-text-muted)", fontWeight: 500 }}>/ 100</span>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--gov-text-muted)", marginTop: "2px" }}>
+                      City-wide vulnerability metric
+                    </div>
+                  </div>
+
+                  <div style={{ padding: "12px", background: "var(--gov-surface2)", borderRadius: "10px", border: "1px solid var(--gov-border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#22c55e", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                      <Activity className="w-3.5 h-3.5" />
+                      <span>Road Quality Index (RQI)</span>
+                    </div>
+                    <div style={{ fontSize: "22px", fontWeight: 800, color: "#22c55e", marginTop: "4px" }}>
+                      {monsoonIntelligence.averageRQI} <span style={{ fontSize: "12px", color: "var(--gov-text-muted)", fontWeight: 500 }}>/ 100</span>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--gov-text-muted)", marginTop: "2px" }}>
+                      Average structural integrity
+                    </div>
+                  </div>
+
+                  <div style={{ padding: "12px", background: "var(--gov-surface2)", borderRadius: "10px", border: "1px solid var(--gov-border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#ef4444", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Critical Flood / Breakdown Zones</span>
+                    </div>
+                    <div style={{ fontSize: "22px", fontWeight: 800, color: monsoonIntelligence.criticalZoneCount > 0 ? "#ef4444" : "var(--gov-text)", marginTop: "4px" }}>
+                      {monsoonIntelligence.criticalZoneCount} <span style={{ fontSize: "12px", color: "var(--gov-text-muted)", fontWeight: 500 }}>Corridors</span>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--gov-text-muted)", marginTop: "2px" }}>
+                      Immediate PWD asphalt intervention
+                    </div>
+                  </div>
+
+                  <div style={{ padding: "12px", background: "var(--gov-surface2)", borderRadius: "10px", border: "1px solid var(--gov-border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#f59e0b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Monsoon Readiness Status</span>
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--gov-text)", marginTop: "8px" }}>
+                      {monsoonIntelligence.monsoonReadiness}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Risk Zones Table */}
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Corridor / Zone</th>
+                      <th>Vulnerability Score</th>
+                      <th>Road Quality (RQI)</th>
+                      <th>Key Vulnerabilities</th>
+                      <th>Risk Level</th>
+                      <th>AI PWD Preventive Action Plan</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monsoonIntelligence.zones.map((zone, idx) => {
+                      const riskBadgeClass =
+                        zone.riskLevel === "CRITICAL"
+                          ? "badge--high"
+                          : zone.riskLevel === "HIGH"
+                          ? "badge--medium"
+                          : zone.riskLevel === "MODERATE"
+                          ? "badge--in_progress"
+                          : "badge--low";
+
+                      return (
+                        <tr key={zone.id}>
+                          <td>
+                            <div style={{ fontWeight: 600, color: "var(--gov-text)", display: "flex", alignItems: "center", gap: "5px" }}>
+                              <MapPin className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+                              <span>Zone #{idx + 1} [{zone.lat.toFixed(5)}, {zone.lng.toFixed(5)}]</span>
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--gov-text-muted)" }}>
+                              {zone.hazards.length} registered reports
+                            </div>
+                          </td>
+
+                          {/* Vulnerability Score Progress */}
+                          <td>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div style={{ width: "60px", height: "6px", background: "var(--gov-surface2)", borderRadius: "999px", overflow: "hidden" }}>
+                                <div
+                                  style={{
+                                    width: `${zone.vulnerabilityScore}%`,
+                                    height: "100%",
+                                    background: zone.vulnerabilityScore > 65 ? "#ef4444" : zone.vulnerabilityScore > 40 ? "#f59e0b" : "#22c55e",
+                                  }}
+                                />
+                              </div>
+                              <span style={{ fontWeight: 700, fontSize: "13px", color: zone.vulnerabilityScore > 65 ? "#ef4444" : zone.vulnerabilityScore > 40 ? "#f59e0b" : "#22c55e" }}>
+                                {zone.vulnerabilityScore}%
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* RQI */}
+                          <td>
+                            <span style={{ fontWeight: 700, color: "#00ccff" }}>
+                              {zone.rqiScore}/100
+                            </span>
+                          </td>
+
+                          {/* Key Vulnerabilities */}
+                          <td>
+                            <div style={{ fontSize: "12px", color: "var(--gov-text)" }}>
+                              {zone.potholeCount} Potholes • {zone.waterLoggingCount} Drainage/Floods
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--gov-text-muted)" }}>
+                              Avg Severity: {zone.avgSeverity} / 3
+                            </div>
+                          </td>
+
+                          {/* Risk Level Badge */}
+                          <td>
+                            <span className={`badge ${riskBadgeClass}`}>
+                              {zone.riskLevel}
+                            </span>
+                          </td>
+
+                          {/* AI Recommended Preventive Maintenance */}
+                          <td style={{ maxWidth: "280px" }}>
+                            <div style={{ fontSize: "12px", color: "var(--gov-text)", lineHeight: "1.4" }}>
+                              {zone.recommendedAction}
+                            </div>
+                          </td>
+
+                          {/* Action */}
+                          <td>
+                            <Link
+                              href={`/gov/map?lat=${zone.lat}&lng=${zone.lng}`}
+                              className="btn btn--ghost flex items-center gap-1"
+                              style={{ padding: "4px 8px", fontSize: "11px" }}
+                              title="Inspect Corridor on Gov Map"
+                            >
+                              <ExternalLink className="w-3 h-3 text-sky-400" />
+                              <span>Inspect</span>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {monsoonIntelligence.zones.length === 0 && (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: "center", padding: "28px", color: "var(--gov-text-muted)" }}>
+                          No high-risk monsoon road corridors detected for the selected period.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>

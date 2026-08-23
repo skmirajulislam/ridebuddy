@@ -28,8 +28,8 @@ export function useUpdateStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: Hazard["status"] }) =>
-      api.updateStatus(id, status),
+    mutationFn: ({ id, status, repair_image_url }: { id: number; status: Hazard["status"]; repair_image_url?: string | null }) =>
+      api.updateStatus(id, status, repair_image_url),
 
     // Optimistic update
     onMutate: async ({ id, status }) => {

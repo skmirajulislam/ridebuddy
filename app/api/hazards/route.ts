@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { type, lat, lng, severity, imageBase64, imageMimeType, image_url, imageUrl, fileName } = body;
+    const { type, lat, lng, severity, imageBase64, imageMimeType, image_url, imageUrl, fileName, voice_report } = body;
+    const isVoiceReport = voice_report === true;
 
     // 1. Basic validation
     if (!type || lat == null || lng == null) {
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     let finalImageUrl = image_url || imageUrl || null;
 
-    if (!imageBase64 && !finalImageUrl) {
+    if (!imageBase64 && !finalImageUrl && !isVoiceReport) {
       return NextResponse.json(
         { error: "Image is required for hazard verification" },
         { status: 400 }
@@ -97,9 +98,10 @@ export async function POST(req: NextRequest) {
       hazard_type: string | null;
       confidence: number;
       skipped?: boolean;
-    } = { is_hazard: true, hazard_type: type, confidence: 1.0, skipped: true };
+    } = { is_hazard: true, hazard_type: type, confidence: isVoiceReport ? 0.5 : 1.0, skipped: true };
 
-    if (imageBase64) {
+    // Voice reports bypass image validation — they are flagged as lower-confidence
+    if (imageBase64 && !isVoiceReport) {
       try {
         validation = await validateImage(
           imageBase64,
@@ -167,7 +169,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         ...hazard,
-        gemini_validated: true,
+        gemini_validated: !isVoiceReport,
+        voice_report: isVoiceReport || undefined,
         hazard_type_ai: validation.hazard_type,
       },
       { status: 201 }

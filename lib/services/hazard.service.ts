@@ -12,6 +12,10 @@ export interface HazardRecord {
   verified: boolean;
   user_id: number | null;
   image_url?: string | null;
+  repair_image_url?: string | null;
+  repair_verified?: boolean;
+  repair_verified_at?: string | null;
+  repair_verify_count?: number;
   created_at: string;
   resolved_at: string | null;
   resolved_by_user_id: number | null;
@@ -331,7 +335,8 @@ export async function deleteHazard(
 export async function updateHazardStatus(
   id: number,
   status: "active" | "in_progress" | "resolved",
-  userId: number
+  userId: number,
+  repairImageUrl?: string | null
 ): Promise<HazardRecord | null> {
   const isResolving = status === "resolved";
 
@@ -352,10 +357,11 @@ export async function updateHazardStatus(
     `UPDATE hazards
      SET status              = $1,
          resolved_at         = $2,
-         resolved_by_user_id = $3
+         resolved_by_user_id = $3,
+         repair_image_url    = COALESCE($5, repair_image_url)
      WHERE id = $4
      RETURNING *`,
-    [status, isResolving ? new Date() : null, isResolving ? userId : null, id]
+    [status, isResolving ? new Date() : null, isResolving ? userId : null, id, repairImageUrl || null]
   );
 
   return result.rows[0] ?? null;
@@ -479,3 +485,165 @@ export async function getGovStats(): Promise<GovStats> {
   return result.rows[0] ?? { total: "0", active: "0", in_progress: "0", resolved: "0" };
 }
 
+/**
+ * Get resolved-but-unverified hazards near a coordinate (for repair verification prompts).
+ * Returns only hazards where status='resolved', repair_verified=false, and repair_image_url is present.
+ */
+export async function getResolvedHazardsNearby(
+  lat: number,
+  lng: number,
+  radiusMeters = 100
+): Promise<HazardRecord[]> {
+  const result = await pool.query<HazardRecord>(
+    `SELECT h.*,
+      (2 * 6371008.8 * asin(
+        sqrt(
+          sin(radians((h.lat - $1) / 2)) ^ 2
+          + cos(radians($1)) * cos(radians(h.lat))
+          * sin(radians((h.lng - $2) / 2)) ^ 2
+        )
+      )) AS distance_meters
+     FROM hazards h
+     WHERE h.status = 'resolved'
+       AND COALESCE(h.repair_verified, false) = false
+       AND h.repair_image_url IS NOT NULL
+       AND (2 * 6371008.8 * asin(
+             sqrt(
+               sin(radians((h.lat - $1) / 2)) ^ 2
+               + cos(radians($1)) * cos(radians(h.lat))
+               * sin(radians((h.lng - $2) / 2)) ^ 2
+             )
+           )) < $3
+     ORDER BY distance_meters ASC
+     LIMIT 5`,
+    [lat, lng, radiusMeters]
+  );
+  return result.rows;
+}
+
+/**
+ * Submit a citizen repair verification vote.
+ * When 2 citizens confirm "confirmed", the hazard gets an SLA Quality Stamp.
+ * When 2 citizens vote "still_broken", the hazard reverts to active.
+ */
+export async function submitRepairVerification(
+  hazardId: number,
+  userId: number,
+  vote: "confirmed" | "still_broken"
+): Promise<{
+  success: boolean;
+  confirmCount: number;
+  brokenCount: number;
+  repairVerified: boolean;
+  revertedToActive: boolean;
+  message: string;
+}> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Check for existing vote by this user
+    const existing = await client.query(
+      `SELECT id FROM repair_verifications WHERE hazard_id = $1 AND user_id = $2`,
+      [hazardId, userId]
+    );
+
+    if ((existing.rowCount ?? 0) > 0) {
+      await client.query("ROLLBACK");
+      return {
+        success: false,
+        confirmCount: 0,
+        brokenCount: 0,
+        repairVerified: false,
+        revertedToActive: false,
+        message: "You have already verified this repair.",
+      };
+    }
+
+    // Insert vote
+    await client.query(
+      `INSERT INTO repair_verifications (hazard_id, user_id, vote, created_at)
+       VALUES ($1, $2, $3, NOW())`,
+      [hazardId, userId, vote]
+    );
+
+    // Count votes
+    const counts = await client.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE vote = 'confirmed')::int AS confirm_count,
+         COUNT(*) FILTER (WHERE vote = 'still_broken')::int AS broken_count
+       FROM repair_verifications
+       WHERE hazard_id = $1`,
+      [hazardId]
+    );
+
+    const confirmCount = Number(counts.rows[0]?.confirm_count || 0);
+    const brokenCount = Number(counts.rows[0]?.broken_count || 0);
+
+    let repairVerified = false;
+    let revertedToActive = false;
+
+    // 2 confirmed votes → SLA Quality Stamp
+    if (vote === "confirmed" && confirmCount >= 2) {
+      await client.query(
+        `UPDATE hazards
+         SET repair_verified = true,
+             repair_verified_at = NOW(),
+             repair_verify_count = $2
+         WHERE id = $1`,
+        [hazardId, confirmCount]
+      );
+      repairVerified = true;
+    }
+
+    // 2 still_broken votes → revert to active
+    if (vote === "still_broken" && brokenCount >= 2) {
+      await client.query(
+        `UPDATE hazards
+         SET status = 'active',
+             resolved_at = NULL,
+             resolved_by_user_id = NULL,
+             repair_image_url = NULL,
+             repair_verified = false,
+             repair_verify_count = 0
+         WHERE id = $1`,
+        [hazardId]
+      );
+      // Clean up repair verification records since hazard is reverting
+      await client.query(
+        `DELETE FROM repair_verifications WHERE hazard_id = $1`,
+        [hazardId]
+      );
+      revertedToActive = true;
+    }
+
+    // Award +50 Karma to verifier
+    await client.query(
+      `UPDATE users SET karma = COALESCE(karma, 50) + 50 WHERE id = $1`,
+      [userId]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      success: true,
+      confirmCount,
+      brokenCount,
+      repairVerified,
+      revertedToActive,
+      message: repairVerified
+        ? "Repair verified! SLA Quality Stamp awarded to contractor. +50 Karma!"
+        : revertedToActive
+        ? "Community reports repair inadequate. Hazard reverted to active. +50 Karma for your vigilance!"
+        : vote === "confirmed"
+        ? "Thank you! Repair confirmation recorded. +50 Karma!"
+        : "Thank you! Your report has been recorded. +50 Karma!",
+    };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("[Hazard] Repair verification error:", err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}

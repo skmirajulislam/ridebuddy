@@ -139,6 +139,29 @@ export function useVoiceAssistant({
         return;
       }
 
+      // Generic hazard commands — catch-all for hands-free reporting
+      if (
+        text.includes("report hazard") ||
+        text.includes("hazard here") ||
+        text.includes("danger ahead") ||
+        text.includes("danger here") ||
+        text.includes("bad road") ||
+        text.includes("broken road")
+      ) {
+        speak("Hazard logged at your location. Ride safe!", true);
+        toast.success("Voice Report: Hazard detected", { icon: "🎙️" });
+        onVoiceReport?.("hazard");
+        return;
+      }
+
+      // Standalone "report" as a last-resort catch-all
+      if (text === "report" || text.startsWith("report ")) {
+        speak("Hazard reported at current location.", true);
+        toast.success("Voice Report: Generic hazard", { icon: "🎙️" });
+        onVoiceReport?.("hazard");
+        return;
+      }
+
       // 2. Navigation Commands
       if (text.includes("stop navigation") || text.includes("cancel navigation") || text.includes("exit navigation")) {
         speak("Navigation ended.");
