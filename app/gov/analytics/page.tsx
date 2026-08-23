@@ -6,28 +6,18 @@ import Image from "next/image";
 import Header from "../_components/Header";
 import { useHazards } from "../_hooks/useHazards";
 import {
-  BarChart3,
-  TrendingDown,
   Clock,
   CheckCircle2,
   AlertTriangle,
-  Download,
   FileSpreadsheet,
   Globe,
   FileCode,
   ShieldCheck,
   MapPin,
   ExternalLink,
-  Layers,
-  User,
   Search,
-  ArrowUpDown,
-  Filter,
   Eye,
-  CheckCircle,
   CloudRain,
-  Droplets,
-  Zap,
   Activity,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -60,7 +50,7 @@ interface HazardCluster {
 }
 
 export default function AnalyticsPage() {
-  const { data: hazards = [], isLoading, error } = useHazards();
+  const { data: hazards = [] } = useHazards();
   const [timeRange, setTimeRange] = useState<"all" | "30d" | "7d">("all");
   const [activeTab, setActiveTab] = useState<"reports" | "clusters" | "monsoon">("reports");
   const [searchQuery, setSearchQuery] = useState("");
@@ -244,7 +234,7 @@ export default function AnalyticsPage() {
     filteredHazards.forEach((h) => {
       if (!h.lat || !h.lng || isNaN(h.lat) || isNaN(h.lng)) return;
 
-      let assignedCluster = clusters.find(
+      const assignedCluster = clusters.find(
         (c) => distanceMeters(c.lat, c.lng, h.lat, h.lng) <= CLUSTER_RADIUS_METERS
       );
 
@@ -741,7 +731,7 @@ export default function AnalyticsPage() {
                 <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--gov-text-muted)" }}>Sort:</span>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
+                  onChange={(e) => setSortBy(e.target.value as "critical" | "id_asc" | "newest" | "oldest")}
                   style={{
                     padding: "5px 10px",
                     fontSize: "12px",

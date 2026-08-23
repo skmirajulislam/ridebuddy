@@ -4,37 +4,42 @@ import { useState, useEffect } from "react";
 
 export type GovTheme = "light" | "dark";
 
+export function applyTheme(newTheme: GovTheme) {
+  if (typeof document === "undefined") return;
+  document.documentElement.setAttribute("data-theme", newTheme);
+  if (newTheme === "dark") {
+    document.documentElement.classList.add("theme-dark");
+    document.documentElement.classList.remove("theme-light");
+  } else {
+    document.documentElement.classList.add("theme-light");
+    document.documentElement.classList.remove("theme-dark");
+  }
+}
+
 export function useGovTheme() {
-  const [theme, setThemeState] = useState<GovTheme>("light");
-  const [mounted, setMounted] = useState(false);
+  const [theme, setThemeState] = useState<GovTheme>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("gov_theme") as GovTheme;
+      return saved === "dark" || saved === "light" ? saved : "light";
+    }
+    return "light";
+  });
+  const [mounted] = useState(() => typeof window !== "undefined");
 
   useEffect(() => {
-    setMounted(true);
-    const saved = (localStorage.getItem("gov_theme") as GovTheme) || "light";
-    setThemeState(saved);
-    applyTheme(saved);
+    applyTheme(theme);
 
     const handleThemeChange = (e: Event) => {
       const customEvent = e as CustomEvent<GovTheme>;
       if (customEvent.detail && (customEvent.detail === "light" || customEvent.detail === "dark")) {
         setThemeState(customEvent.detail);
+        applyTheme(customEvent.detail);
       }
     };
 
     window.addEventListener("gov_theme_changed", handleThemeChange);
     return () => window.removeEventListener("gov_theme_changed", handleThemeChange);
-  }, []);
-
-  const applyTheme = (newTheme: GovTheme) => {
-    document.documentElement.setAttribute("data-theme", newTheme);
-    if (newTheme === "dark") {
-      document.documentElement.classList.add("theme-dark");
-      document.documentElement.classList.remove("theme-light");
-    } else {
-      document.documentElement.classList.add("theme-light");
-      document.documentElement.classList.remove("theme-dark");
-    }
-  };
+  }, [theme]);
 
   const toggleTheme = () => {
     const nextTheme: GovTheme = theme === "light" ? "dark" : "light";

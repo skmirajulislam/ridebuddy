@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import AuthModal from "../_components/AuthModal";
 import ProfileModal from "../_components/ProfileModal";
+import PWAInstallButton from "../_components/PWAInstallButton";
 import { useAuth } from "../_hooks/useAuth";
 
 export default function WelcomePage() {
@@ -223,6 +224,9 @@ export default function WelcomePage() {
                 <ArrowRight className="h-5 w-5" />
               </Button>
             )}
+
+            {/* Install Button directly below Start Navigating on Mobile/Tablet only (hidden on Desktop lg screens) */}
+            <PWAInstallButton variant="hero" className="lg:hidden flex" />
 
             <Link href="/" className="w-full sm:w-auto">
               <Button variant="secondary" size="lg" className="w-full sm:w-auto text-base h-13 px-8">

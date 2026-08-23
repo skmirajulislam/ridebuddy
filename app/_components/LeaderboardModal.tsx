@@ -128,19 +128,22 @@ export default function LeaderboardModal({
                     onClick={() => onSelectUser?.(topThree[1].handle)}
                     className="cursor-pointer space-y-1.5 transition-transform hover:scale-105"
                   >
-                    <div className="relative mx-auto w-12 h-12 rounded-full border-2 border-slate-400 bg-slate-800 flex items-center justify-center font-bold text-sm text-slate-300">
-                      {topThree[1].avatar_url ? (
-                        <Image
-                          src={topThree[1].avatar_url}
-                          alt={topThree[1].name}
-                          width={48}
-                          height={48}
-                          className="rounded-full object-cover"
-                        />
-                      ) : (
-                        topThree[1].name.charAt(0).toUpperCase()
-                      )}
-                      <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-slate-400 text-slate-950 text-[10px] font-black flex items-center justify-center">
+                    <div className="relative mx-auto w-12 h-12">
+                      <div className="w-12 h-12 rounded-full border-2 border-slate-400 bg-slate-800 flex items-center justify-center font-bold text-sm text-slate-300 overflow-hidden shadow-md">
+                        {topThree[1].avatar_url ? (
+                          <Image
+                            src={topThree[1].avatar_url}
+                            alt={topThree[1].name}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          topThree[1].name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-slate-400 text-slate-950 text-[10px] font-black flex items-center justify-center shadow">
                         2
                       </span>
                     </div>
@@ -156,18 +159,21 @@ export default function LeaderboardModal({
                     onClick={() => onSelectUser?.(topThree[0].handle)}
                     className="cursor-pointer space-y-1.5 pb-2 transition-transform hover:scale-105"
                   >
-                    <div className="relative mx-auto w-16 h-16 rounded-full border-2 border-amber-400 bg-amber-500/20 flex items-center justify-center font-black text-base text-amber-300 shadow-lg shadow-amber-500/30">
-                      {topThree[0].avatar_url ? (
-                        <Image
-                          src={topThree[0].avatar_url}
-                          alt={topThree[0].name}
-                          width={64}
-                          height={64}
-                          className="rounded-full object-cover"
-                        />
-                      ) : (
-                        topThree[0].name.charAt(0).toUpperCase()
-                      )}
+                    <div className="relative mx-auto w-16 h-16">
+                      <div className="w-16 h-16 rounded-full border-2 border-amber-400 bg-amber-500/20 flex items-center justify-center font-black text-base text-amber-300 shadow-lg shadow-amber-500/30 overflow-hidden">
+                        {topThree[0].avatar_url ? (
+                          <Image
+                            src={topThree[0].avatar_url}
+                            alt={topThree[0].name}
+                            width={64}
+                            height={64}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          topThree[0].name.charAt(0).toUpperCase()
+                        )}
+                      </div>
                       <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-amber-400 text-slate-950 text-xs font-black flex items-center justify-center shadow">
                         👑
                       </span>
@@ -186,19 +192,22 @@ export default function LeaderboardModal({
                     onClick={() => onSelectUser?.(topThree[2].handle)}
                     className="cursor-pointer space-y-1.5 transition-transform hover:scale-105"
                   >
-                    <div className="relative mx-auto w-12 h-12 rounded-full border-2 border-amber-700 bg-slate-800 flex items-center justify-center font-bold text-sm text-amber-600">
-                      {topThree[2].avatar_url ? (
-                        <Image
-                          src={topThree[2].avatar_url}
-                          alt={topThree[2].name}
-                          width={48}
-                          height={48}
-                          className="rounded-full object-cover"
-                        />
-                      ) : (
-                        topThree[2].name.charAt(0).toUpperCase()
-                      )}
-                      <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-amber-700 text-amber-100 text-[10px] font-black flex items-center justify-center">
+                    <div className="relative mx-auto w-12 h-12">
+                      <div className="w-12 h-12 rounded-full border-2 border-amber-700 bg-slate-800 flex items-center justify-center font-bold text-sm text-amber-600 overflow-hidden shadow-md">
+                        {topThree[2].avatar_url ? (
+                          <Image
+                            src={topThree[2].avatar_url}
+                            alt={topThree[2].name}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          topThree[2].name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-amber-700 text-amber-100 text-[10px] font-black flex items-center justify-center shadow">
                         3
                       </span>
                     </div>
@@ -222,14 +231,15 @@ export default function LeaderboardModal({
                     <span className="w-5 text-center font-mono font-bold text-xs text-slate-400">
                       #{user.rank}
                     </span>
-                    <div className="h-9 w-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-xs text-cyan-300 overflow-hidden">
+                    <div className="h-9 w-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-xs text-cyan-300 overflow-hidden flex-shrink-0">
                       {user.avatar_url ? (
                         <Image
                           src={user.avatar_url}
                           alt={user.name}
                           width={36}
                           height={36}
-                          className="object-cover"
+                          className="w-full h-full object-cover"
+                          unoptimized
                         />
                       ) : (
                         user.name.charAt(0).toUpperCase()

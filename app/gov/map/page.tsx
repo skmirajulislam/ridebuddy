@@ -29,34 +29,34 @@ function GovMapContent() {
   const targetLng = searchParams.get("lng");
 
   const { data: hazards = [], isPending } = useHazards();
-  const [selected, setSelected] = useState<Hazard | null>(null);
+  const [manuallySelected, setManuallySelected] = useState<Hazard | null>(null);
   const [userLoc, setUserLoc] = useState<{ lng: number; lat: number } | null>(null);
 
-  // Auto-select hazard from URL query params (e.g. redirected from HazardPanel)
-  useEffect(() => {
-    if (hazards.length === 0) return;
+  // Auto-select hazard from URL query params
+  const urlSelected = useMemo(() => {
+    if (hazards.length === 0) return null;
 
     if (targetId) {
       const match = hazards.find((h) => String(h.id) === targetId);
-      if (match) {
-        setSelected(match);
-        return;
-      }
+      if (match) return match;
     }
 
     if (targetLat && targetLng) {
       const latNum = parseFloat(targetLat);
       const lngNum = parseFloat(targetLng);
       if (!isNaN(latNum) && !isNaN(lngNum)) {
-        const match = hazards.find(
-          (h) => Math.abs(h.lat - latNum) < 0.0002 && Math.abs(h.lng - lngNum) < 0.0002
+        return (
+          hazards.find(
+            (h) => Math.abs(h.lat - latNum) < 0.0002 && Math.abs(h.lng - lngNum) < 0.0002
+          ) || null
         );
-        if (match) {
-          setSelected(match);
-        }
       }
     }
+    return null;
   }, [targetId, targetLat, targetLng, hazards]);
+
+  const selected = manuallySelected ?? urlSelected;
+  const setSelected = setManuallySelected;
 
   // Obtain live device location on mount
   useEffect(() => {

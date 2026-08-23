@@ -3,7 +3,6 @@
 import React from "react";
 import { Sun, Moon } from "lucide-react";
 import { useGovTheme } from "../_hooks/useGovTheme";
-import PWAInstallButton from "@/app/_components/PWAInstallButton";
 
 interface HeaderProps {
   title: string;
@@ -21,8 +20,6 @@ export default function Header({ title, subtitle }: HeaderProps) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-        {/* PWA Install Button */}
-        <PWAInstallButton />
         {/* Theme Toggle Button */}
         {mounted && (
           <button

@@ -3,7 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { formatDistanceToNow, format } from "date-fns";
-import { AlertTriangle, Clock, CheckCircle2, MapPin, Eye } from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 import type { Hazard } from "../_services/api";
 
 interface DataTableProps {

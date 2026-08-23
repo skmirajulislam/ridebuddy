@@ -62,8 +62,8 @@ export function useUserLocation() {
 
     const geoOptions: PositionOptions = {
       enableHighAccuracy: true,
-      maximumAge: 0, // Never use cached GPS positions — force real-time hardware satellite querying
-      timeout: 6000, // Short timeout for rapid continuous updates
+      maximumAge: 1000, // 1s freshness - optimal for 60Hz mobile navigation without draining battery
+      timeout: 8000,
     };
 
     // 1. Initial fast GPS query
@@ -76,23 +76,18 @@ export function useUserLocation() {
         handleError,
         geoOptions
       );
-      setIsTracking(true);
     } catch (e) {
       console.warn("[GPS] watchPosition failed:", e);
     }
 
-    // 3. Active Real-Time Polling Loop (1.5s interval)
-    // Ensures continuous real-time updates even when walking slowly or stationary near a hazard
+    // 3. Fallback Heartbeat (4s interval) — only queries if watchPosition stalls
     pollIntervalRef.current = setInterval(() => {
       if (!isMounted) return;
-      navigator.geolocation.getCurrentPosition(
-        handleSuccess,
-        () => {
-          // If high-accuracy query times out, retry without breaking state
-        },
-        geoOptions
-      );
-    }, 1500);
+      const timeSinceLastPos = Date.now() - (lastPosRef.current?.time || 0);
+      if (timeSinceLastPos > 3500) {
+        navigator.geolocation.getCurrentPosition(handleSuccess, () => {}, geoOptions);
+      }
+    }, 4000);
 
     return () => {
       isMounted = false;
@@ -104,7 +99,6 @@ export function useUserLocation() {
         clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
       }
-      setIsTracking(false);
     };
   }, []);
 

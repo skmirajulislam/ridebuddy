@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import Image from "next/image";
-import { Users, Award, ShieldAlert, CheckCircle2, Filter, X, Sparkles, ChevronRight } from "lucide-react";
+import { Users, X, ChevronRight } from "lucide-react";
 import type { Hazard } from "../_services/api";
 
 interface ContributorLeaderboardProps {

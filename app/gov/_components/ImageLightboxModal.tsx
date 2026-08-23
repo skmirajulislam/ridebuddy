@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { X, ZoomIn, ZoomOut, ExternalLink, Sparkles } from "lucide-react";
+import { X, ZoomIn, ZoomOut, ExternalLink } from "lucide-react";
 
 interface ImageLightboxModalProps {
   isOpen: boolean;
@@ -39,7 +39,6 @@ export default function ImageLightboxModal({
   });
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
-
   // Handle ESC key to close
   useEffect(() => {
     if (!isOpen) return;
@@ -49,13 +48,6 @@ export default function ImageLightboxModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
-
-  // Reset natural size & zoom when image URL changes
-  useEffect(() => {
-    setNaturalSize(null);
-    setIsZoomActive(false);
-    setLoupe((prev) => ({ ...prev, visible: false }));
-  }, [imageUrl]);
 
   if (!isOpen || !imageUrl) return null;
 

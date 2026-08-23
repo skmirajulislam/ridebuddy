@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import type { Hazard } from "../_services/api";
-import { Layers, MapPin, ZoomIn, ZoomOut, Compass } from "lucide-react";
+import { Layers } from "lucide-react";
 
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || "";
 
@@ -23,50 +23,49 @@ export function createRasterStyle(tiles: string[]): maplibregl.StyleSpecificatio
         type: "raster",
         tiles,
         tileSize: 256,
-        maxzoom: 19,
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/">CARTO</a>',
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       },
     },
     layers: [
       {
-        id: "gov-tiles-layer",
+        id: "gov-raster-layer",
         type: "raster",
         source: "gov-tiles",
         minzoom: 0,
-        maxzoom: 19,
+        maxzoom: 22,
       },
     ],
   };
 }
 
-export function getGovMapStyle(theme: GovMapTheme, key?: string): maplibregl.StyleSpecification | string {
-  if (key) {
-    if (theme === "satellite") return `https://api.maptiler.com/maps/hybrid/style.json?key=${key}`;
-    if (theme === "dark") return `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${key}`;
-    return `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${key}`;
-  }
-
-  if (theme === "satellite") {
+export function getGovMapStyle(theme: GovMapTheme, key: string): string | maplibregl.StyleSpecification {
+  if (!key) {
+    if (theme === "dark") {
+      return createRasterStyle([
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+      ]);
+    }
     return createRasterStyle([
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+      "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+      "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+      "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
     ]);
   }
 
-  if (theme === "dark") {
-    return createRasterStyle([
-      "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-    ]);
+  switch (theme) {
+    case "dark":
+      return `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${key}`;
+    case "satellite":
+      return `https://api.maptiler.com/maps/hybrid/style.json?key=${key}`;
+    case "streets":
+    default:
+      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`;
   }
-
-  // Default: Crisp CARTO Voyager with full global roads, highways, street labels & landmarks
-  return createRasterStyle([
-    "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-    "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-    "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-  ]);
 }
 
 interface MapViewProps {
@@ -95,6 +94,11 @@ export default function MapView({
     return "streets";
   });
 
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
+
   const onUserLocateRef = useRef(onUserLocate);
   useEffect(() => {
     onUserLocateRef.current = onUserLocate;
@@ -104,6 +108,21 @@ export default function MapView({
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
+
+  // Switch Theme callback
+  const handleThemeChange = useCallback((newTheme: GovMapTheme) => {
+    setTheme(newTheme);
+    if (!mapRef.current) return;
+
+    const styleSpec = getGovMapStyle(newTheme, MAPTILER_KEY);
+    mapRef.current.setStyle(styleSpec, {
+      diff: false,
+      transformStyle: (_prev, next) => ({
+        ...next,
+        projection: next.projection ?? { type: "mercator" },
+      }),
+    });
+  }, []);
 
   // Sync map layer when GovOps global theme toggles
   useEffect(() => {
@@ -118,7 +137,7 @@ export default function MapView({
 
     window.addEventListener("gov_theme_changed", onGlobalThemeChange);
     return () => window.removeEventListener("gov_theme_changed", onGlobalThemeChange);
-  }, []);
+  }, [handleThemeChange]);
 
   // Initialize map once
   useEffect(() => {
@@ -210,22 +229,8 @@ export default function MapView({
       mapRef.current = null;
       isLoadedRef.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Switch Theme
-  const handleThemeChange = (newTheme: GovMapTheme) => {
-    setTheme(newTheme);
-    if (!mapRef.current) return;
-
-    const styleSpec = getGovMapStyle(newTheme, MAPTILER_KEY);
-    mapRef.current.setStyle(styleSpec, {
-      diff: false,
-      transformStyle: (_prev, next) => ({
-        ...next,
-        projection: next.projection ?? { type: "mercator" },
-      }),
-    });
-  };
 
   // Sync markers & fit bounds
   useEffect(() => {
@@ -283,7 +288,7 @@ export default function MapView({
 
         el.addEventListener("click", (e) => {
           e.stopPropagation();
-          onSelect(h);
+          onSelectRef.current(h);
         });
 
         const marker = new maplibregl.Marker({ element: el, anchor: "center" })
@@ -308,7 +313,7 @@ export default function MapView({
       mapRef.current.once("load", renderMarkers);
       mapRef.current.once("style.load", renderMarkers);
     }
-  }, [hazards, selectedId, onSelect]);
+  }, [hazards, selectedId]);
 
   return (
     <div

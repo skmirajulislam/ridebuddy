@@ -34,7 +34,6 @@ import SquadModal from "./SquadModal";
 import LeaderboardModal from "./LeaderboardModal";
 import EmergencySOSModal from "./EmergencySOSModal";
 import OfflineMapPackModal from "./OfflineMapPackModal";
-import PWAInstallButton from "./PWAInstallButton";
 import type { SquadDetails } from "@/lib/services/squad.service";
 
 import {
@@ -884,7 +883,7 @@ export default function Map() {
       lastRepairCheckTimeRef.current = now;
       fetch(`/api/hazards/nearby-resolved?lat=${lat}&lng=${lng}&radius=60`)
         .then((res) => (res.ok ? res.json() : []))
-        .then((resolvedHazards: any[]) => {
+        .then((resolvedHazards: Array<{ id: number; type: string; lat: number; lng: number; repair_image_url?: string | null; distance_meters?: number }>) => {
           if (Array.isArray(resolvedHazards) && resolvedHazards.length > 0) {
             const candidate = resolvedHazards.find(
               (h) => !verifiedRepairHazardIdsRef.current.has(h.id)
@@ -2111,9 +2110,6 @@ export default function Map() {
                 setVoiceEnabled(!voiceEnabled);
               }}
             />
-
-            {/* PWA 1-Tap Install Button */}
-            <PWAInstallButton />
 
             <div style={{ width: "1px", height: "22px", background: "rgba(255, 255, 255, 0.15)", flexShrink: 0 }} />
 

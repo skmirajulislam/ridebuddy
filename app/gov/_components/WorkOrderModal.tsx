@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
@@ -9,13 +9,6 @@ import {
   Copy,
   Check,
   X,
-  MapPin,
-  Calendar,
-  AlertTriangle,
-  Clock,
-  ShieldCheck,
-  Send,
-  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Hazard } from "../_services/api";
@@ -27,35 +20,35 @@ interface WorkOrderModalProps {
 }
 
 export default function WorkOrderModal({ isOpen, onClose, hazard }: WorkOrderModalProps) {
-  const [mounted, setMounted] = useState(false);
+  const [mounted] = useState(() => typeof window !== "undefined");
   const [copied, setCopied] = useState(false);
   const [department, setDepartment] = useState("PWD Highway Engineering Division IV");
   const [contractor, setContractor] = useState("Urban Roadways & Infrastructure Corp.");
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const slaHours = hazard ? (hazard.severity === 3 ? 24 : hazard.severity === 2 ? 72 : 168) : 72;
+
+  const { workOrderId, dateIssued, slaDate } = useMemo(() => {
+    if (!hazard) return { workOrderId: "", dateIssued: "", slaDate: "" };
+    const baseTime = hazard.created_at ? new Date(hazard.created_at).getTime() : 1700000000000;
+    const woId = `PWD-WO-${new Date(baseTime).getFullYear()}-${String(hazard.id).padStart(5, "0")}`;
+    const issued = new Date(baseTime).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const sla = new Date(baseTime + slaHours * 3600 * 1000).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return { workOrderId: woId, dateIssued: issued, slaDate: sla };
+  }, [hazard, slaHours]);
 
   if (!isOpen || !hazard || !mounted) return null;
-
-  const workOrderId = `PWD-WO-${new Date().getFullYear()}-${String(hazard.id).padStart(5, "0")}`;
-  const dateIssued = new Date().toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  // SLA calculation
-  const slaHours = hazard.severity === 3 ? 24 : hazard.severity === 2 ? 72 : 168;
-  const slaDate = new Date(Date.now() + slaHours * 3600 * 1000).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
   const severityTitle = hazard.severity === 3 ? "CRITICAL (Immediate Action)" : hazard.severity === 2 ? "MODERATE (Standard SLA)" : "LOW (Routine Maintenance)";
 

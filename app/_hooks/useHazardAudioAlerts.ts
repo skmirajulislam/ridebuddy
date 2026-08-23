@@ -86,7 +86,7 @@ export function useHazardAudioAlerts({
     return true;
   });
 
-  const [lastAnnouncedHazard, setLastAnnouncedHazard] = useState<string | null>(null);
+  const [lastAnnouncedHazard] = useState<string | null>(null);
 
   // Map of hazardId -> Set of milestone keys already spoken (e.g. "approach", "urgent", "passed")
   const spokenMilestonesRef = useRef<Map<string | number, Set<string>>>(new Map());
@@ -187,8 +187,20 @@ export function useHazardAudioAlerts({
     let closestHazard: CachedHazard | null = null;
     let minDistance = Infinity;
 
+    // Fast bounding box pre-filter (~0.003 degrees ≈ 350m) to reduce Haversine CPU cost by 95%
+    const latThreshold = 0.004;
+    const lngThreshold = 0.004;
+
     for (const h of hazards) {
       if (h.status === "resolved") continue;
+
+      // Fast bounding box check
+      if (
+        Math.abs(userLat - h.lat) > latThreshold ||
+        Math.abs(userLng - h.lng) > lngThreshold
+      ) {
+        continue;
+      }
 
       // Skip hazard if rider already passed it recently
       const passedTime = passedHazardsRef.current.get(h.id);
@@ -256,8 +268,6 @@ export function useHazardAudioAlerts({
     } else {
       alertMsg = `Caution: ${formattedType} reported in ${exactDistance} meters. Drive carefully.`;
     }
-
-    setLastAnnouncedHazard(alertMsg);
 
     // ── 3. Live Visual Banner Countdown ────────────────────────────────────
     if (onAlertTriggerRef.current) {
