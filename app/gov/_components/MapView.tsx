@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { Hazard } from "../_services/api";
 import { Layers } from "lucide-react";
+
+export type StyleSpecification = ReturnType<maplibregl.Map["getStyle"]>;
 
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || "";
 
@@ -15,7 +17,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export type GovMapTheme = "streets" | "dark" | "satellite";
 
-export function createRasterStyle(tiles: string[]): maplibregl.StyleSpecification {
+export function createRasterStyle(tiles: string[]): StyleSpecification {
   return {
     version: 8,
     sources: {
@@ -39,7 +41,7 @@ export function createRasterStyle(tiles: string[]): maplibregl.StyleSpecificatio
   };
 }
 
-export function getGovMapStyle(theme: GovMapTheme, key: string): string | maplibregl.StyleSpecification {
+export function getGovMapStyle(theme: GovMapTheme, key: string): string | StyleSpecification {
   if (!key) {
     if (theme === "dark") {
       return createRasterStyle([
@@ -117,7 +119,7 @@ export default function MapView({
     const styleSpec = getGovMapStyle(newTheme, MAPTILER_KEY);
     mapRef.current.setStyle(styleSpec, {
       diff: false,
-      transformStyle: (_prev, next) => ({
+      transformStyle: (_prev: StyleSpecification | undefined, next: StyleSpecification) => ({
         ...next,
         projection: next.projection ?? { type: "mercator" },
       }),
@@ -153,7 +155,7 @@ export default function MapView({
     const styleSpec = getGovMapStyle(theme, MAPTILER_KEY);
     map.setStyle(styleSpec, {
       diff: false,
-      transformStyle: (_prev, next) => ({
+      transformStyle: (_prev: StyleSpecification | undefined, next: StyleSpecification) => ({
         ...next,
         projection: next.projection ?? { type: "mercator" },
       }),
@@ -169,7 +171,7 @@ export default function MapView({
     });
     map.addControl(geolocate, "top-right");
 
-    geolocate.on("geolocate", (e: GeolocationPosition) => {
+    geolocate.on("geolocate", (e) => {
       onUserLocateRef.current?.(e.coords.longitude, e.coords.latitude);
       if (!selectedIdRef.current) {
         map.flyTo({

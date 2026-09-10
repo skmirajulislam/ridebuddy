@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { Hazard } from "../_services/api";
-import { getGovMapStyle } from "./MapView";
+import { getGovMapStyle, type StyleSpecification } from "./MapView";
 
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || "";
 
@@ -48,7 +48,7 @@ export default function MapPreview({
     const styleSpec = getGovMapStyle("streets", MAPTILER_KEY);
     map.setStyle(styleSpec, {
       diff: false,
-      transformStyle: (_prev, next) => ({
+      transformStyle: (_prev: StyleSpecification | undefined, next: StyleSpecification) => ({
         ...next,
         projection: next.projection ?? { type: "mercator" },
       }),

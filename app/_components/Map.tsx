@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import maplibregl, { Map as MapLibreMap, GeoJSONSource } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { Map as MapLibreMap, GeoJSONSource } from "maplibre-gl";
+
+type StyleSpecification = ReturnType<maplibregl.Map["getStyle"]>;
 import type { Feature, LineString, FeatureCollection, Point } from "geojson";
 import Link from "next/link";
 import Image from "next/image";
@@ -389,7 +392,7 @@ export default function Map() {
     },
   });
 
-  const createRasterStyle = (tiles: string[]): maplibregl.StyleSpecification => ({
+  const createRasterStyle = (tiles: string[]): StyleSpecification => ({
     version: 8,
     sources: {
       "carto-tiles": {
@@ -412,7 +415,7 @@ export default function Map() {
     ],
   });
 
-  const getMapStyle = (theme: "dark" | "satellite" | "neon_fog", key?: string): maplibregl.StyleSpecification | string => {
+  const getMapStyle = (theme: "dark" | "satellite" | "neon_fog", key?: string): StyleSpecification | string => {
     if (key) {
       if (theme === "satellite") return `https://api.maptiler.com/maps/hybrid/style.json?key=${key}`;
       if (theme === "neon_fog") return `https://api.maptiler.com/maps/backdrop-dark/style.json?key=${key}`;
@@ -461,43 +464,44 @@ export default function Map() {
     if (!mapContainer.current || map.current) return;
 
     // MapLibre v5 calls migrateProjection() on every style load.
-    map.current = new maplibregl.Map({
+    const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       center: [88.3639, 22.5726],
       zoom: 13,
       maxZoom: 19,
     });
+    map.current = mapInstance;
 
     const defaultStyle = getMapStyle(mapTheme, apiKey);
 
-    map.current.setStyle(defaultStyle, {
+    mapInstance.setStyle(defaultStyle, {
       diff: false,
-      transformStyle: (_prev, next) => ({
+      transformStyle: (_prev: StyleSpecification | undefined, next: StyleSpecification) => ({
         ...next,
         projection: next.projection ?? { type: "mercator" },
       }),
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), "bottom-right");
-    map.current.addControl(new maplibregl.FullscreenControl(), "bottom-right");
+    mapInstance.addControl(new maplibregl.NavigationControl(), "bottom-right");
+    mapInstance.addControl(new maplibregl.FullscreenControl(), "bottom-right");
 
     // Disable default double-click zoom so double-clicking places/moves destination pointer
-    map.current.doubleClickZoom.disable();
+    mapInstance.doubleClickZoom.disable();
 
-    map.current.on("load", () => {
+    mapInstance.on("load", () => {
       initHazardLayer();
       setIsMapLoaded(true);
     });
 
     // Double-click handler to set or change location pointer anywhere on map
-    map.current.on("dblclick", (e) => {
+    mapInstance.on("dblclick", (e) => {
       const target = mapPickTargetRef.current || "to";
       const { lng, lat } = e.lngLat;
       handleMapClick(lng, lat, target);
     });
 
     // Single-click handler when explicit picker mode is active
-    map.current.on("click", (e) => {
+    mapInstance.on("click", (e) => {
       const target = mapPickTargetRef.current;
       if (!target) return;
 
@@ -506,15 +510,15 @@ export default function Map() {
     });
 
     // Suppress "Image ' ' could not be loaded" noise from MapTiler sprite mismatches
-    map.current.on("styleimagemissing", (e: { id: string }) => {
+    mapInstance.on("styleimagemissing", (e: { id: string }) => {
       if (!e.id || e.id.trim() === "") return; // blank id — skip silently
       // Add a 1×1 transparent ImageData so MapLibre stops retrying the missing image
       const emptyImage: ImageData = new ImageData(new Uint8ClampedArray(4), 1, 1);
-      map.current?.addImage(e.id, emptyImage);
+      mapInstance.addImage(e.id, emptyImage);
     });
 
     return () => {
-      map.current?.remove();
+      mapInstance.remove();
       map.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
