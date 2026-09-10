@@ -1569,6 +1569,7 @@ export default function Map() {
 
         sendNotification("Hazard Ahead", hazardMessage);
         setWarning(hazardMessage);
+        speak(hazardMessage, true);
         if (typeof nearbyNavHazard.id === "number") {
           notifiedHazardIds.current.add(nearbyNavHazard.id);
         }

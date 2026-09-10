@@ -198,9 +198,9 @@ export function useHazardAudioAlerts({
     if (exactDistance <= 25) {
       alertMsg = `Caution: ${formattedType} in ${exactDistance} meters! Reduce speed now.`;
     } else if (isHighSpeed) {
-      alertMsg = `High speed detected (${Math.round(currentSpeedKmh)} km/h)! Slow down, ${formattedType} ${exactDistance} meters ahead.`;
+      alertMsg = `High speed detected (${Math.round(currentSpeedKmh)} km/h)! Slow down, ${formattedType} in ${exactDistance} meters.`;
     } else {
-      alertMsg = `Caution: ${formattedType} reported in ${exactDistance} meters. Drive carefully.`;
+      alertMsg = `Caution: ${formattedType} in ${exactDistance} meters. Drive carefully.`;
     }
 
     // ── 3. Live Visual Banner Countdown ────────────────────────────────────
@@ -215,18 +215,23 @@ export function useHazardAudioAlerts({
       }
       const hazardMilestones = spokenMilestonesRef.current.get(closestHazard.id)!;
 
-      // Milestone 1: Initial approach alert (25m - 150m)
-      if (exactDistance > 25 && exactDistance <= effectiveRadius && !hazardMilestones.has("approach")) {
+      // Milestone 1: Initial approach alert (60m - 150m)
+      if (exactDistance > 60 && exactDistance <= effectiveRadius && !hazardMilestones.has("approach")) {
         hazardMilestones.add("approach");
-        speakAlert(alertMsg);
+        speakAlert(`Caution: ${formattedType} in ${exactDistance} meters.`);
       }
-      // Milestone 2: Urgent close-up alert (<= 25m)
+      // Milestone 2: Mid-range approach alert (25m - 60m)
+      else if (exactDistance > 25 && exactDistance <= 60 && !hazardMilestones.has("midrange")) {
+        hazardMilestones.add("midrange");
+        speakAlert(`${formattedType} in ${exactDistance} meters.`);
+      }
+      // Milestone 3: Urgent close-up alert (<= 25m)
       else if (exactDistance <= 25 && !hazardMilestones.has("urgent")) {
         hazardMilestones.add("urgent");
-        speakAlert(`Caution: ${formattedType} ahead! Reduce speed now.`);
+        speakAlert(`Caution: ${formattedType} in ${exactDistance} meters! Reduce speed now.`);
       }
 
-      // Milestone 3: Passing chime (<= 8m)
+      // Milestone 4: Passing chime (<= 8m)
       if (exactDistance <= 8 && !hazardMilestones.has("passing")) {
         hazardMilestones.add("passing");
         playHazardChime();
