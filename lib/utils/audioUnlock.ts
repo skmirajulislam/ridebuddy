@@ -61,10 +61,6 @@ export function unlockMobileAudioAndSpeech(): void {
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
-        // Silent utterance to unlock speech queue
-        const silentUtterance = new SpeechSynthesisUtterance("");
-        silentUtterance.volume = 0;
-        window.speechSynthesis.speak(silentUtterance);
       }
     } catch {
       // ignore
@@ -86,6 +82,19 @@ export function unlockMobileAudioAndSpeech(): void {
 // Retain active utterances in memory to prevent WebKit garbage-collection bug
 const globalUtterances = new Set<SpeechSynthesisUtterance>();
 
+// Cache voices once loaded
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      try {
+        window.speechSynthesis.getVoices();
+      } catch {
+        // ignore
+      }
+    };
+  }
+}
+
 /**
  * Universal Mobile-Ready Text-To-Speech with automatic voice selection,
  * WebKit unpause, and audio chime fallback.
@@ -94,7 +103,7 @@ export function speakText(
   text: string,
   options?: { rate?: number; pitch?: number; priority?: boolean }
 ): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !text || text.trim() === "") return;
 
   // Always play the melodic alert chime so riders hear it even if TTS is muted
   playHazardChime();
@@ -102,21 +111,22 @@ export function speakText(
   if (!("speechSynthesis" in window)) return;
 
   try {
+    // Unpause speech engine if suspended by browser
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
 
-    if (options?.priority) {
-      window.speechSynthesis.cancel();
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
+    // Cancel previous utterance queue to prevent speech deadlocks/queue starvation
+    window.speechSynthesis.cancel();
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = options?.rate ?? 1.0;
     utterance.pitch = options?.pitch ?? 1.0;
     utterance.volume = 1.0;
+    utterance.lang = "en-US";
 
     // Pick natural English voice if available
     const voices = window.speechSynthesis.getVoices();
@@ -135,7 +145,10 @@ export function speakText(
         voices.find((v) => v.lang.startsWith("en")) ||
         voices[0];
 
-      if (preferred) utterance.voice = preferred;
+      if (preferred) {
+        utterance.voice = preferred;
+        if (preferred.lang) utterance.lang = preferred.lang;
+      }
     }
 
     globalUtterances.add(utterance);

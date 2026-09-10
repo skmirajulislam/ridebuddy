@@ -57,13 +57,26 @@ export function useUserLocation() {
         setIsTracking(false);
       } else {
         console.warn("[GPS] Location notice:", err.message);
+        // Automatic fallback: if high accuracy timed out (code 3) or position unavailable (code 2),
+        // immediately retry with coarse (Wi-Fi / IP) location so position is promptly established
+        try {
+          navigator.geolocation.getCurrentPosition(
+            handleSuccess,
+            (fallbackErr) => {
+              console.warn("[GPS] Coarse location fallback failed:", fallbackErr.message);
+            },
+            { enableHighAccuracy: false, timeout: 12000, maximumAge: 30000 }
+          );
+        } catch {
+          // ignore
+        }
       }
     };
 
     const geoOptions: PositionOptions = {
       enableHighAccuracy: true,
-      maximumAge: 1000, // 1s freshness - optimal for 60Hz mobile navigation without draining battery
-      timeout: 8000,
+      maximumAge: 3000,
+      timeout: 10000,
     };
 
     // 1. Initial fast GPS query
@@ -84,10 +97,21 @@ export function useUserLocation() {
     pollIntervalRef.current = setInterval(() => {
       if (!isMounted) return;
       const timeSinceLastPos = Date.now() - (lastPosRef.current?.time || 0);
-      if (timeSinceLastPos > 3500) {
-        navigator.geolocation.getCurrentPosition(handleSuccess, () => {}, geoOptions);
+      if (timeSinceLastPos > 4000) {
+        navigator.geolocation.getCurrentPosition(
+          handleSuccess,
+          () => {
+            // Secondary coarse attempt
+            navigator.geolocation.getCurrentPosition(
+              handleSuccess,
+              () => {},
+              { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
+            );
+          },
+          geoOptions
+        );
       }
-    }, 4000);
+    }, 5000);
 
     return () => {
       isMounted = false;

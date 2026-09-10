@@ -89,12 +89,15 @@ export function useHazardAudioAlerts({
       if (typeof window !== "undefined") {
         localStorage.setItem("ridebuddy_audio_alerts", String(next));
       }
+      if (next) {
+        speakText("Hazard voice warnings enabled", { priority: true });
+      }
       return next;
     });
   }, []);
 
   const speakAlert = useCallback((text: string) => {
-    speakText(text, { rate: 1.0, pitch: 1.0 });
+    speakText(text, { priority: true, rate: 1.0, pitch: 1.0 });
   }, []);
 
   // Monitor user location relative to hazards dynamically on every GPS tick
@@ -112,15 +115,15 @@ export function useHazardAudioAlerts({
 
     const currentSpeedKmh = speed ? speed * 3.6 : 0;
     const isHighSpeed = currentSpeedKmh > 35;
-    const effectiveRadius = isHighSpeed ? Math.max(warningRadiusMeters, 150) : Math.min(warningRadiusMeters, 120);
+    const effectiveRadius = warningRadiusMeters || 150;
 
     // Find the closest active hazard to user's real-time position
     let closestHazard: CachedHazard | null = null;
     let minDistance = Infinity;
 
-    // Fast bounding box pre-filter (~0.003 degrees ≈ 350m) to reduce Haversine CPU cost by 95%
-    const latThreshold = 0.004;
-    const lngThreshold = 0.004;
+    // Bounding box pre-filter (~0.005 degrees ≈ 550m)
+    const latThreshold = 0.005;
+    const lngThreshold = 0.005;
 
     for (const h of hazards) {
       if (h.status === "resolved") continue;
@@ -162,10 +165,10 @@ export function useHazardAudioAlerts({
     }
 
     // ── 2. Automatic Cleanup on Passed Hazard ──────────────────────────────
-    // If rider was within close range (<=10m) and distance is now increasing by >5m (riding away) OR <=5m
-    const hasPassed = (currentMinSeen <= 10 && minDistance > currentMinSeen + 5);
+    // Rider must be actively moving (>8 km/h), was very close (<=15m), and distance is now increasing (>currentMinSeen + 10m)
+    const isMovingAway = currentSpeedKmh > 8 && currentMinSeen <= 15 && minDistance > currentMinSeen + 10;
 
-    if (hasPassed) {
+    if (isMovingAway) {
       passedHazardsRef.current.set(closestHazard.id, now);
       activeHazardIdRef.current = null;
 
@@ -212,18 +215,19 @@ export function useHazardAudioAlerts({
       }
       const hazardMilestones = spokenMilestonesRef.current.get(closestHazard.id)!;
 
-      // Milestone 1: Initial alert (40m - 120m)
-      if (exactDistance > 25 && exactDistance <= 120 && !hazardMilestones.has("approach")) {
+      // Milestone 1: Initial approach alert (25m - 150m)
+      if (exactDistance > 25 && exactDistance <= effectiveRadius && !hazardMilestones.has("approach")) {
         hazardMilestones.add("approach");
         speakAlert(alertMsg);
       }
       // Milestone 2: Urgent close-up alert (<= 25m)
-      else if (exactDistance <= 25 && exactDistance > 6 && !hazardMilestones.has("urgent")) {
+      else if (exactDistance <= 25 && !hazardMilestones.has("urgent")) {
         hazardMilestones.add("urgent");
-        speakAlert(`Caution: ${formattedType} in ${exactDistance} meters! Reduce speed now.`);
+        speakAlert(`Caution: ${formattedType} ahead! Reduce speed now.`);
       }
-      // Milestone 3: Passing chime (<= 6m)
-      else if (exactDistance <= 6 && !hazardMilestones.has("passing")) {
+
+      // Milestone 3: Passing chime (<= 8m)
+      if (exactDistance <= 8 && !hazardMilestones.has("passing")) {
         hazardMilestones.add("passing");
         playHazardChime();
       }
